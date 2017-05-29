@@ -25,7 +25,6 @@ add_executable(ethercat
     ${SRC}/map.c
     ${SRC}/help.c
     ${SRC}/start.c
-    ${SRC}/slaves-cli.c
     ${SRC}/ec-slaves.c
     ${SRC}/hashmap.c
     ${INC}/ecmap.h

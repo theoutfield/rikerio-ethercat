@@ -21,7 +21,7 @@ let g:syntastic_auto_loc_list = 1
 let g:syntastic_check_on_open = 0
 let g:syntastic_check_on_wq = 0
 
-let g:syntastic_c_include_dirs = ['include', 'build']
+let g:syntastic_c_include_dirs = ['include', 'build', '/usr/include']
 let g:syntastic_c_check_header = 0
 
 
