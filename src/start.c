@@ -1,10 +1,11 @@
 #include "ec-slaves.h"
+#include "sap.h"
 #include <ethercat.h>
 #include <master.h>
 
-char* config_filename
-    = "/home/stefan/workspace/open-automation-server/build/adr.json";
-char* ifname = "enp0s25";
+char* config = "";
+char* ifname = "eth0";
+char* id = "ethercat";
 
 static void master_create_links(master_t* master, ec_slave_t** slaves)
 {
@@ -78,7 +79,7 @@ static void master_create_links(master_t* master, ec_slave_t** slaves)
     }
 }
 
-void ec_on_init(void* ptr)
+static void ec_on_init(void* ptr)
 {
 
     printf("Initiating master\n");
@@ -87,12 +88,12 @@ void ec_on_init(void* ptr)
 
     /* load configuration */
 
-    if (!config_filename) {
+    if (!config) {
 	printf("exiting, no config\n");
 	exit(-1);
     }
 
-    ec_slave_t** config_slaves = ec_slaves_create_from_json(config_filename);
+    ec_slave_t** config_slaves = ec_slaves_create_from_json(config);
 
     if (!config_slaves) {
 	exit(-1);
@@ -121,7 +122,7 @@ void ec_on_init(void* ptr)
     master_done(master);
 }
 
-void ec_on_pre(void* ptr)
+static void ec_on_pre(void* ptr)
 {
 
     master_t* master = (master_t*)ptr;
@@ -141,7 +142,7 @@ void ec_on_pre(void* ptr)
     master_done(master);
 }
 
-void ec_on_post(void* ptr)
+static void ec_on_post(void* ptr)
 {
 
     master_t* master = (master_t*)ptr;
@@ -149,7 +150,7 @@ void ec_on_post(void* ptr)
     master_done(master);
 }
 
-void ec_on_quit(void* ptr)
+static void ec_on_quit(void* ptr)
 {
 
     master_t* master = (master_t*)ptr;
@@ -157,16 +158,28 @@ void ec_on_quit(void* ptr)
     master_done(master);
 }
 
-int main(int argc, char* argv[])
+int start_handler(int argc, char* argv[], sap_options_t* options)
 {
 
-    /*    if (argc < 2) {
+    ifname = sap_option_get(options, "ifname");
+    id = sap_option_get(options, "id");
+    config = sap_option_get(options, "config");
 
-	    printf("Name the master! Example ethercat-master master-name\n");
-	    return 0;
-	}
-    */
-    master_t* m = master_create("ethercat");
+    if (!ifname) {
+	ifname = "eth0";
+    }
+
+    if (!id) {
+	id = "ethercat";
+    }
+
+    if (!config) {
+	printf("No configuration given. Use the --config=<filename> option to "
+	       "specify a configuration file.\n");
+	return -1;
+    }
+
+    master_t* m = master_create(id);
 
     master_connect(m);
 

@@ -19,7 +19,19 @@ include_directories(${ROOT}/include)
 
 find_package(Threads REQUIRED)
 
-add_executable(ethercat ${ROOT}/src/main.c ${SRC}/slaves-cli.c ${SRC}/ec-slaves.c ${SRC}/hashmap.c ${INC}/ecmap.h ${INC}/ec-slaves.h ${INC}/hashmap.h ${INC}/slaves-cli.h)
+add_executable(ethercat
+    ${ROOT}/src/main.c
+    ${SRC}/scan.c
+    ${SRC}/map.c
+    ${SRC}/help.c
+    ${SRC}/start.c
+    ${SRC}/slaves-cli.c
+    ${SRC}/ec-slaves.c
+    ${SRC}/hashmap.c
+    ${INC}/ecmap.h
+    ${INC}/ec-slaves.h
+    ${INC}/hashmap.h
+    ${INC}/slaves-cli.h)
 
 target_link_libraries(ethercat soem rikerio-utils sap jansson soem dirclient)
 
