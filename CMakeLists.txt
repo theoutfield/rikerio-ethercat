@@ -24,7 +24,7 @@ add_executable(ethercat
     ${SRC}/scan.c
     ${SRC}/map.c
     ${SRC}/help.c
-    ${SRC}/start.c
+    ${SRC}/rikerio.c
     ${SRC}/ec-slaves.c
     ${SRC}/hashmap.c
     ${SRC}/ecyaml.c

@@ -288,7 +288,7 @@ static void ec_on_quit(void* ptr)
     master_done(master);
 }
 
-int start_handler(int argc, char* argv[], sap_options_t* options)
+int rikerio_handler(int argc, char* argv[], sap_options_t* options)
 {
 
     ifname = sap_option_get(options, "ifname");

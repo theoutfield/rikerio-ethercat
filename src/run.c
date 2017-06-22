@@ -14,7 +14,7 @@ static int freerun_run = 1;
 static int group_error[100];
 static uint8_t* group_offset[100];
 
-static void freerun_signal_handler(int signo)
+static void run_signal_handler(int signo)
 {
 
     if (signo == SIGINT) {
@@ -22,7 +22,7 @@ static void freerun_signal_handler(int signo)
     }
 }
 
-static void freerun_update(int groupcount)
+static void run_update(int groupcount)
 {
     for (int j = 1; j <= groupcount; j += 1) {
 
@@ -89,7 +89,7 @@ static void freerun_update(int groupcount)
     }
 }
 
-static int freerun_create_sm(char* name, uint8_t** io_memory, uint32_t size)
+static int run_create_sm(char* name, uint8_t** io_memory, uint32_t size)
 {
     printf("Creating Shared Memory ... ");
 
@@ -120,7 +120,7 @@ static int freerun_create_sm(char* name, uint8_t** io_memory, uint32_t size)
     return 0;
 }
 
-int freerun_handler(int argc, char* argv[], sap_options_t* options)
+int run_handler(int argc, char* argv[], sap_options_t* options)
 {
 
     char* config = "";
@@ -129,6 +129,7 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
     uint32_t memsize = 4096;
     int first_start = 0;
     int groupcount = 0;
+    int dur = 100;
 
     ifname = sap_option_get(options, "ifname");
     ioname = sap_option_get(options, "out");
@@ -140,6 +141,14 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
         memsize = 4096;
     } else {
         memsize = atoi(memsize_str);
+    }
+
+    char* dur_str = sap_option_get(options, "dur");
+
+    if (!dur_str) {
+        dur = 50;
+    } else {
+        dur = atoi(dur_str);
     }
 
     if (!ifname) {
@@ -211,7 +220,7 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
     /* Create Shared Memory */
 
     uint8_t* io_memory;
-    freerun_create_sm(ioname, &io_memory, memsize);
+    run_create_sm(ioname, &io_memory, memsize);
 
     /* Mapping Slaves */
 
@@ -257,7 +266,7 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
 
     int chk = 40;
     do {
-        freerun_update(groupcount);
+        run_update(groupcount);
         ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
     } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
@@ -267,7 +276,7 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
 
     printf("Subscribing for SIGINT ... ");
 
-    signal(SIGINT, freerun_signal_handler);
+    signal(SIGINT, run_signal_handler);
 
     printf("done.\n");
 
@@ -278,8 +287,8 @@ int freerun_handler(int argc, char* argv[], sap_options_t* options)
     fflush(stdout);
 
     while (freerun_run) {
-        usleep(50 * 1000); // 50ms
-        freerun_update(groupcount);
+        usleep(dur * 1000);
+        run_update(groupcount);
     }
 
     printf("done!\n");
