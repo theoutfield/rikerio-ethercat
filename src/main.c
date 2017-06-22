@@ -1,3 +1,4 @@
+#define EC_DEBUG 1
 
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 
 #include "slaves-cli.h"
 
+int freerun_handler(int argc, char* argv[], sap_options_t* options);
 int start_handler(int argc, char* argv[], sap_options_t* options);
 int help_handler(int argc, char* argv[], sap_options_t* options);
 int slaves_scan(int argc, char* argv[], sap_options_t* options);
@@ -23,6 +25,7 @@ int main_handler(int argc, char* argv[], sap_options_t* options)
     sap_add_command(parser, "scan", slaves_scan);
     sap_add_command(parser, "map", slaves_map);
     sap_add_command(parser, "start", start_handler);
+    sap_add_command(parser, "freerun", freerun_handler);
     sap_add_command(parser, "help", help_handler);
 
     return sap_execute_ex(parser, argc, argv, options);

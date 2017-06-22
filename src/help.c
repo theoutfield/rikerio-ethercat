@@ -16,6 +16,8 @@ int help_handler(int agrc, char* argv[], sap_options_t* options)
 	   "  map           Create the mappins for the config file created "
 	   "with scan.\n"
 	   "                Adds byte and bit offset to every PDO.\n"
+	   "  freerun       Start master without RikerIO and map IO to local "
+	   "file as shared memory.\n"
 	   "  start         Start the EtherCAT Master with the configuration "
 	   "specified by\n"
 	   "                the --config option and the master id specified "

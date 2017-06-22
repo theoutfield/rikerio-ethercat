@@ -35,7 +35,11 @@ typedef struct ec_pdo_st {
     uint32_t byte_offset;
     uint8_t bit_offset;
 
+    // TODO: remove the single link
     char* link;
+
+    int link_count;
+    char* links[20];
 
 } ec_pdo_t;
 
@@ -108,19 +112,12 @@ typedef int (*pdo_iterator)(ec_pdo_t*, int, void*);
 
 /* @brief Create a new list of slaves with the soem master.
  * @param ifname Name of the EtherCAT interface for example eth0.
+ * @param List of slaves from the network
  * @param List of slaves that report errors, only need when return value is
  * NULL.
- * @return List of Slaves if everything is ok. NULL in the case of an error
+ * @return number of slaves in the network, -1 on error
  */
-ec_slave_t** ec_slaves_create_from_soem(
-    char* ifname, ec_slave_t** error_slaves);
-
-/* @brief Create a new list of slaves from a json file. Parses the output
- * from the ec_slaves_print method.
- * @param filename JSON file where the slave informations are stored.
- * @return A list of slaves of NULL in cae of an error.
- */
-ec_slave_t** ec_slaves_create_from_json(char* filename);
+int ec_slaves_create_from_soem(char* ifname, ec_slave_t** slaves, ec_slave_t** error_slaves);
 
 /* @brief Computes the groups refering to the group names in the slaves.
  * @param slaves List of slaves.

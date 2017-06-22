@@ -27,11 +27,14 @@ add_executable(ethercat
     ${SRC}/start.c
     ${SRC}/ec-slaves.c
     ${SRC}/hashmap.c
+    ${SRC}/ecyaml.c
+    ${SRC}/run.c
     ${INC}/ecmap.h
     ${INC}/ec-slaves.h
     ${INC}/hashmap.h
-    ${INC}/slaves-cli.h)
+    ${INC}/slaves-cli.h
+    ${INC}/ecyaml.h)
 
-target_link_libraries(ethercat soem rikerio-utils sap jansson soem dirclient)
+target_link_libraries(ethercat soem rikerio sap yaml jansson soem dirclient rt)
 
 
