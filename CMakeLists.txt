@@ -37,7 +37,7 @@ add_executable(ethercat
     ${INC}/slaves-cli.h
     ${INC}/ecyaml.h)
 
-target_link_libraries(ethercat soem rikerio yaml rt)
+target_link_libraries(ethercat soem pthread rikerio yaml rt)
 
 install (TARGETS ethercat DESTINATION /usr/bin)
 
