@@ -20,7 +20,8 @@ include_directories(${ROOT}/include)
 find_package(Threads REQUIRED)
 
 add_executable(ethercat
-    ${ROOT}/src/main.c
+    ${SRC}/main.c
+    ${SRC}/sap.c
     ${SRC}/scan.c
     ${SRC}/map.c
     ${SRC}/help.c
@@ -29,13 +30,14 @@ add_executable(ethercat
     ${SRC}/hashmap.c
     ${SRC}/ecyaml.c
     ${SRC}/run.c
+    ${INC}/sap.h
     ${INC}/ecmap.h
     ${INC}/ec-slaves.h
     ${INC}/hashmap.h
     ${INC}/slaves-cli.h
     ${INC}/ecyaml.h)
 
-target_link_libraries(ethercat soem rikerio sap yaml soem rt)
+target_link_libraries(ethercat soem rikerio yaml rt)
 
 install (TARGETS ethercat DESTINATION /usr/bin)
 

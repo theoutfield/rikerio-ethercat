@@ -2,6 +2,15 @@
 
 This software is a implementation for the RikerIO Linux Automation Framework in order to use EtherCAT Networks. RikerIO-EtherCAT uses the Simple Open EtherCAT Master from the Open EtherCAT Society.
 
+## Build and Install
+
+``` 
+mkdir build & cd build
+cmake ..
+make
+make install
+```
+
 ## Usage
 
 ### Freerun
