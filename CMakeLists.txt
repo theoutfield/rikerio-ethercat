@@ -35,6 +35,8 @@ add_executable(ethercat
     ${INC}/slaves-cli.h
     ${INC}/ecyaml.h)
 
-target_link_libraries(ethercat soem rikerio sap yaml jansson soem dirclient rt)
+target_link_libraries(ethercat soem rikerio sap yaml soem rt)
+
+install (TARGETS ethercat DESTINATION /usr/bin)
 
 

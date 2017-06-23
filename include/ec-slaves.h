@@ -7,7 +7,6 @@
 
 #include <ethercat.h>
 #include <hashmap.h>
-#include <jansson.h>
 
 #define EC_MAX_SLAVES 65535
 #define EC_MAX_CHANNELS 40

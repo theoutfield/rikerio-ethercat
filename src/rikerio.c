@@ -1,7 +1,8 @@
 #include "ec-slaves.h"
+#include "ecyaml.h"
 #include "sap.h"
 #include <ethercat.h>
-#include <master.h>
+#include <rikerio.h>
 
 char* config = "";
 char* ifname = "eth0";
@@ -10,7 +11,10 @@ uint32_t offset = 0;
 int first_start = 0;
 int groupcount = 0;
 
-static void master_create_links(
+static uint8_t* group_offset[100];
+static int group_error[100];
+
+static void rikerio_create_links(
     master_t* master, ec_slave_t** slaves, uint32_t link_offset)
 {
     int i = 0;
@@ -85,16 +89,25 @@ static void master_create_links(
     }
 }
 
-static void update()
+static void rikerio_update()
 {
     for (int j = 1; j <= groupcount; j += 1) {
-        ec_send_processdata_group(j);
-        int wkc = ec_receive_processdata_group(j, EC_TIMEOUTRET);
 
-        int expectedWKC = (ec_group[j].outputsWKC * 2) + ec_group[j].inputsWKC;
+        int wkc;
+        int expectedWKC;
+        uint8_t wc_state;
 
-        uint8_t wc_state = 0;
+        if (!group_error[j]) {
+            ec_send_processdata_group(j);
+            wkc = ec_receive_processdata_group(j, EC_TIMEOUTRET);
+            expectedWKC = (ec_group[j].outputsWKC * 2) + ec_group[j].inputsWKC;
+
+            wc_state = 0;
+        }
         if (wkc != expectedWKC) {
+
+            group_error[j] = 1;
+
             printf("Working counter for group %d do not match.(%d != %d)\n", j,
                 wkc, expectedWKC);
             wc_state = 1;
@@ -104,8 +117,11 @@ static void update()
                     continue;
                 }
                 if (ec_slave[i].state == EC_STATE_OPERATIONAL) {
+                    group_error[j] = 0;
                     continue;
                 }
+
+                ec_readstate();
 
                 printf("Slave %d not in operational state (%02x).\n", i,
                     ec_slave[i].state);
@@ -135,8 +151,8 @@ static void update()
             }
         }
 
-        /* TODO: copy working counter for this group */
-        memcpy(&ec_group[j].inputs, &wc_state, sizeof(uint8_t));
+        /* copy working counter for this group */
+        memcpy(group_offset[j], &wc_state, sizeof(uint8_t));
     }
 }
 
@@ -149,111 +165,119 @@ static void ec_on_init(void* ptr)
 
     /* load configuration */
 
-    if (!config) {
-        printf("exiting, no config\n");
-        exit(-1);
+    ec_slave_t** config_slaves;
+    ec_slave_t** network_slaves;
+    ec_slave_t** error_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
+
+    printf("Scanning Network ... ");
+    network_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
+    int network_ret = ec_slaves_create_from_soem(ifname, network_slaves, error_slaves);
+
+    if (network_ret == -1) {
+        printf("failed.\n");
+        master_done(master, RIO_ERROR);
+        return;
     }
 
-    printf("Reading config from %s.\n", config);
-    //    ec_slave_t** config_slaves = ec_slaves_create_from_json(config);
-    ec_slave_t** config_slaves;
-    /*
-	printf("Creating links.\n");
-	master_create_links(master, config_slaves, offset);
+    printf("done, found %d slaves.\n", ec_slavecount);
 
-	ecx_context.maxgroup = 100;
+    if (config) {
+        printf("Reading config from %s.\n", config);
+        config_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
+        ecyaml_read(config_slaves, config);
 
-	if (!config_slaves) {
-	    exit(-1);
-	}
-	// scan the ethercat network
+        printf("Comparing ... ");
 
-	if (!ifname) {
-	    exit(-1);
-	}
+        int c_res = ec_slaves_compare(network_slaves, config_slaves);
 
-	// create links
+        if (c_res == -1) {
+            printf(" configuration and network do NOT match.\n");
+            master_done(master, RIO_ERROR);
+            return;
+        }
 
-	printf("Initiate interface.\n");
+        printf("configuration and network match!\n");
 
-	if (ec_init(ifname) == -1) {
-	    printf("Error initiating interface.\n");
-	    exit(-1);
-	}
+        printf("Creating Links ... ");
+        rikerio_create_links(master, config_slaves, offset);
 
-	if (ec_config_init(FALSE) == -1) {
-	    printf("Error initiating and discovering slaves.\n");
-	    exit(-1);
-	}
+        printf("done!");
 
-	printf("Grouping slaves.\n");
+    } else {
+        printf("No configuration, using network 'as it is'.\n");
+        config_slaves = network_slaves;
+    }
 
-	ec_group_t** config_groups = ec_slaves_create_groups(config_slaves);
+    printf("Creating groups ... ");
+    ec_group_t** config_groups = ec_slaves_create_groups(config_slaves);
+    ec_group_t* group = config_groups[0];
 
-	int index = 0;
-	groupcount = 0;
-	ec_group_t* group = config_groups[index];
+    int index = 0;
+    groupcount = 0;
+    while (group) {
+        groupcount += 1;
+        // set slave group ids
+        for (int i = 0; i < group->member_count; i += 1) {
+            uint16 slaveIndex = group->member[i] + 1;
+            ec_slave[slaveIndex].group = index + 1;
+        }
+        group = config_groups[++index];
+    }
 
-	while (group) {
-	    groupcount += 1;
-	    // set slave group ids
-	    for (int i = 0; i < group->member_count; i += 1) {
-		uint16 slaveIndex = group->member[i] + 1;
-		ec_slave[slaveIndex].group = index + 1;
-	    }
-	    group = config_groups[++index];
-	}
+    printf("found %d groups.\n", groupcount);
 
-	printf("Found %d groups.\n", groupcount);
+    /* Mapping Slaves */
 
-	for (int i = 1; i <= ec_slavecount; i += 1) {
-	    printf("Slave[%d] in group %d.\n", i, ec_slave[i].group);
-	}
+    printf("Mapping slaves ... ");
 
-	printf("Map Slaves.\n");
+    int offs = 0;
 
-	int offs = offset + 1;
+    for (int i = 1; i <= groupcount; i += 1) {
+        uint8_t* ptr = master->io->pointer + offs;
+        group_offset[i] = ptr;
+        offs += ec_config_map_group(ptr + 1, i) + 1;
+    }
 
-	for (int i = 1; i <= groupcount; i += 1) {
+    printf("done.\n");
 
-	    uint8_t* ptr = master->io->pointer + offs;
-	    printf("Group %d offset = %d.\n", i, offs);
+    /* Configure Distributed Clocks */
 
-	    offs += ec_config_map_group(ptr, i) + 1;
-	}
+    printf("Configurating distributed clocks ... ");
 
-	// TODO: set slaves watchdog to zero and wait for the start
+    if (ec_configdc() == -1) {
+        printf("Configuration failed.\n");
+        master_done(master, RIO_ERROR);
+        return;
+    }
 
-	// go!
+    printf("done\n");
 
-	if (ec_configdc() == -1) {
-	    printf("Configuration failed.\n");
-	    exit(-1);
-	}
+    /* Waiting for slaves */
 
-	printf("Slaves mapped, state to SAFE_OP.\n");
+    printf("Waiting for all slaves to reach SAFE_OP state ... ");
 
-	// wait for all slaves to reach SAFE_OP state
-	int ret_safe_op = ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE *
-       4);
+    // wait for all slaves to reach SAFE_OP state
+    int ret_safe_op = ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
 
-	if (ret_safe_op == -1) {
-	    printf("error statecheck.\n");
-	}
+    if (ret_safe_op == -1) {
+        printf("error statecheck ... ");
+    }
 
-	printf("Writing state.\n");
-	ec_slave[0].state = EC_STATE_OPERATIONAL;
-	ec_writestate(0);
+    printf("done.\n");
 
-	int chk = 40;
-	do {
-	    update();
-	    ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
-	} while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
+    printf("Waiting for all slaves to reach OP state ...");
+    ec_slave[0].state = EC_STATE_OPERATIONAL;
+    ec_writestate(0);
 
-	*/
+    int chk = 40;
+    do {
+        rikerio_update();
+        ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
+    } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
-    master_done(master);
+    printf("done!\n");
+
+    master_done(master, RIO_OK);
 }
 
 static void ec_on_pre(void* ptr)
@@ -265,9 +289,7 @@ static void ec_on_pre(void* ptr)
      * first start of the master. If so, set the slaves
      * watchdog to cycletime + 100ms */
 
-    update();
-
-    master_done(master);
+    master_done(master, RIO_OK);
 }
 
 static void ec_on_post(void* ptr)
@@ -275,7 +297,9 @@ static void ec_on_post(void* ptr)
 
     master_t* master = (master_t*)ptr;
 
-    master_done(master);
+    rikerio_update();
+
+    master_done(master, RIO_OK);
 }
 
 static void ec_on_quit(void* ptr)
@@ -285,7 +309,7 @@ static void ec_on_quit(void* ptr)
 
     ec_close();
 
-    master_done(master);
+    master_done(master, RIO_OK);
 }
 
 int rikerio_handler(int argc, char* argv[], sap_options_t* options)
@@ -311,12 +335,6 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
 
     if (!id) {
         id = "ethercat";
-    }
-
-    if (!config) {
-        printf("No configuration given. Use the --config=<filename> option to "
-               "specify a configuration file.\n");
-        return -1;
     }
 
     master_t* m = master_create(id);
