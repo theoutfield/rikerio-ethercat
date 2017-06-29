@@ -34,9 +34,6 @@ typedef struct ec_pdo_st {
     uint32_t byte_offset;
     uint8_t bit_offset;
 
-    // TODO: remove the single link
-    char* link;
-
     int link_count;
     char* links[20];
 

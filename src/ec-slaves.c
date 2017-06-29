@@ -313,7 +313,6 @@ static int ec_config_get_channels_pdo(
             pdo->datatype_str = dtype2string(pdo->datatype);
             pdo->bitlen = ec_siigetbyte(slave, offset + 5);
             pdo->name = calloc(1, EC_MAXNAME + 1);
-            pdo->link = NULL;
 
             offset += 5 + 3;
             size += 4;
@@ -498,6 +497,8 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups)
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
+                    printf("output: slave %d starts at %d.%d counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+
                     bit_offset += cur_pdo->bitlen;
                 }
             }
@@ -520,6 +521,8 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups)
                     cur_pdo->byte_offset = bit_offset / 8;
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
+
+                    printf("input: slave %d starts at %d.%d, counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
 
                     bit_offset += cur_pdo->bitlen;
                 }
@@ -572,13 +575,13 @@ void ec_slaves_iterate_pdos(ec_slave_t** slaves, pdo_iterator it, void* data)
 static int ec_slaves_link_iterator(ec_pdo_t* pdo, int io, void* data)
 {
 
-    if (!pdo->mapped || !pdo->link || !data) {
+    if (!pdo->mapped || !data) {
         return 0;
     }
 
     map_t* map = (map_t)data;
 
-    char* key = pdo->link;
+    char* key = pdo->links[0];
 
     int read = 0;
     int write = 0;

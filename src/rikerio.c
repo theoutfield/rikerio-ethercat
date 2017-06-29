@@ -33,22 +33,27 @@ static void rikerio_create_links(
 
             while (current_pdo) {
 
-                if (strlen(current_pdo->link) == 0) {
-                    current_pdo = current_channel->pdo[++iii];
-                    continue;
+                for (int i = 0; i < current_pdo->link_count; i += 1) {
+
+                    char* link_str = current_pdo->links[i];
+
+                    if (!link_str) {
+
+                        break;
+                    }
+
+                    linker_adr_t link = {.byte_offset
+                        = current_pdo->byte_offset + link_offset + 1,
+                        .bit_offset = current_pdo->bit_offset };
+
+                    strcpy(link.key, link_str);
+
+                    printf("Setting link %s (%d.%d) ... ", link_str,
+                        link.byte_offset + link_offset + 1, link.bit_offset);
+
+                    int ret = master_set_link(master, link_str, &link);
+                    printf("with response code %d.\n", ret);
                 }
-
-                linker_adr_t link = {.byte_offset
-                    = current_pdo->byte_offset + link_offset + 1,
-                    .bit_offset = current_pdo->bit_offset };
-
-                strcpy(link.key, current_pdo->link);
-
-                printf("Setting link %s (%u.%d) ", current_pdo->link,
-                    link.byte_offset, link.bit_offset);
-                int ret = master_set_link(master, current_pdo->link, &link);
-                printf("with response code %d.\n", ret);
-
                 current_pdo = current_channel->pdo[++iii];
             }
             ii++;
@@ -64,20 +69,27 @@ static void rikerio_create_links(
 
             while (current_pdo) {
 
-                if (strlen(current_pdo->link) == 0) {
-                    current_pdo = current_channel->pdo[++iii];
-                    continue;
+                for (int i = 0; i < current_pdo->link_count; i += 1) {
+
+                    char* link_str = current_pdo->links[i];
+
+                    if (!link_str) {
+
+                        break;
+                    }
+
+                    linker_adr_t link = {.byte_offset
+                        = current_pdo->byte_offset + link_offset + 1,
+                        .bit_offset = current_pdo->bit_offset };
+
+                    strcpy(link.key, link_str);
+
+                    printf("Setting link %s (%d.%d) ... ", link_str,
+                        link.byte_offset + link_offset + 1, link.bit_offset);
+
+                    int ret = master_set_link(master, link_str, &link);
+                    printf("with response code %d.\n", ret);
                 }
-
-                linker_adr_t link = {.byte_offset
-                    = current_pdo->byte_offset + link_offset + 1,
-                    .bit_offset = current_pdo->bit_offset };
-
-                strcpy(link.key, current_pdo->link);
-
-                printf("Setting link %s ", current_pdo->link);
-                int ret = master_set_link(master, current_pdo->link, &link);
-                printf("with response code %d.\n", ret);
 
                 current_pdo = current_channel->pdo[++iii];
             }
@@ -181,6 +193,12 @@ static void ec_on_init(void* ptr)
 
     printf("done, found %d slaves.\n", ec_slavecount);
 
+    if (ec_slavecount == 0) {
+        printf("No slaves in the network, shuting down.\n");
+        master_done(master, RIO_ERROR);
+        return;
+    }
+
     if (config) {
         printf("Reading config from %s.\n", config);
         config_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
@@ -197,11 +215,6 @@ static void ec_on_init(void* ptr)
         }
 
         printf("configuration and network match!\n");
-
-        printf("Creating Links ... ");
-        rikerio_create_links(master, config_slaves, offset);
-
-        printf("done!");
 
     } else {
         printf("No configuration, using network 'as it is'.\n");
@@ -224,7 +237,12 @@ static void ec_on_init(void* ptr)
         group = config_groups[++index];
     }
 
-    printf("found %d groups.\n", groupcount);
+    printf("found %d group(s).\n", groupcount);
+
+    printf("Creating Links ... \n");
+
+    ec_slaves_map_soem(config_slaves, config_groups);
+    rikerio_create_links(master, config_slaves, offset);
 
     /* Mapping Slaves */
 
@@ -304,6 +322,8 @@ static void ec_on_post(void* ptr)
 
 static void ec_on_quit(void* ptr)
 {
+
+    printf("Terminating ethercat master.\n");
 
     master_t* master = (master_t*)ptr;
 
