@@ -2,6 +2,8 @@
 #include "ecyaml.h"
 #include "sap.h"
 #include <ethercat.h>
+
+#define LOG_NAMESPACE "EtherCAT"
 #include <rikerio.h>
 
 char* config = "";
@@ -15,7 +17,7 @@ static uint8_t* group_offset[100];
 static int group_error[100];
 
 static void rikerio_create_links(
-    master_t* master, ec_slave_t** slaves, uint32_t link_offset)
+    master_t* master, ec_slave_t** slaves)
 {
     int i = 0;
 
@@ -43,16 +45,15 @@ static void rikerio_create_links(
                     }
 
                     linker_adr_t link = {.byte_offset
-                        = current_pdo->byte_offset + link_offset + 1,
+                        = current_pdo->byte_offset,
                         .bit_offset = current_pdo->bit_offset };
 
                     strcpy(link.key, link_str);
 
-                    printf("Setting link %s (%d.%d) ... ", link_str,
-                        link.byte_offset + link_offset + 1, link.bit_offset);
+                    log_info("Setting link %s (%d.%d).", link_str,
+                        link.byte_offset, link.bit_offset);
 
                     int ret = master_set_link(master, link_str, &link);
-                    printf("with response code %d.\n", ret);
                 }
                 current_pdo = current_channel->pdo[++iii];
             }
@@ -79,16 +80,15 @@ static void rikerio_create_links(
                     }
 
                     linker_adr_t link = {.byte_offset
-                        = current_pdo->byte_offset + link_offset + 1,
+                        = current_pdo->byte_offset,
                         .bit_offset = current_pdo->bit_offset };
 
                     strcpy(link.key, link_str);
 
-                    printf("Setting link %s (%d.%d) ... ", link_str,
-                        link.byte_offset + link_offset + 1, link.bit_offset);
+                    log_info("Setting link %s (%d.%d). ", link_str,
+                        link.byte_offset, link.bit_offset);
 
-                    int ret = master_set_link(master, link_str, &link);
-                    printf("with response code %d.\n", ret);
+                    master_set_link(master, link_str, &link);
                 }
 
                 current_pdo = current_channel->pdo[++iii];
@@ -120,7 +120,7 @@ static void rikerio_update()
 
             group_error[j] = 1;
 
-            printf("Working counter for group %d do not match.(%d != %d)\n", j,
+            log_info("Working counter for group %d do not match.(%d != %d).", j,
                 wkc, expectedWKC);
             wc_state = 1;
 
@@ -135,7 +135,7 @@ static void rikerio_update()
 
                 ec_readstate();
 
-                printf("Slave %d not in operational state (%02x).\n", i,
+                log_info("Slave %d not in operational state (%02x).", i,
                     ec_slave[i].state);
 
                 if (ec_slave[i].state == EC_STATE_INIT) {
@@ -171,7 +171,7 @@ static void rikerio_update()
 static void ec_on_init(void* ptr)
 {
 
-    printf("Initiating master\n");
+    log_info("Initiating master.");
 
     master_t* master = (master_t*)ptr;
 
@@ -181,47 +181,44 @@ static void ec_on_init(void* ptr)
     ec_slave_t** network_slaves;
     ec_slave_t** error_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
 
-    printf("Scanning Network ... ");
+    log_info("Scanning Network.");
     network_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
     int network_ret = ec_slaves_create_from_soem(ifname, network_slaves, error_slaves);
 
     if (network_ret == -1) {
-        printf("failed.\n");
+        log_error("Failed scanning network.");
         master_done(master, RIO_ERROR);
         return;
     }
 
-    printf("done, found %d slaves.\n", ec_slavecount);
+    log_info("Found %d slaves.", ec_slavecount);
 
     if (ec_slavecount == 0) {
-        printf("No slaves in the network, shuting down.\n");
+        log_error("No slaves in the network, shuting down.");
         master_done(master, RIO_ERROR);
         return;
     }
 
     if (config) {
-        printf("Reading config from %s.\n", config);
+        log_info("Reading config from %s.", config);
         config_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
         ecyaml_read(config_slaves, config);
-
-        printf("Comparing ... ");
 
         int c_res = ec_slaves_compare(network_slaves, config_slaves);
 
         if (c_res == -1) {
-            printf(" configuration and network do NOT match.\n");
+            log_error("Configuration and network do NOT match.");
             master_done(master, RIO_ERROR);
             return;
         }
 
-        printf("configuration and network match!\n");
+        log_info("Configuration and network match!");
 
     } else {
-        printf("No configuration, using network 'as it is'.\n");
+        log_info("No configuration, using network 'as it is'.");
         config_slaves = network_slaves;
     }
 
-    printf("Creating groups ... ");
     ec_group_t** config_groups = ec_slaves_create_groups(config_slaves);
     ec_group_t* group = config_groups[0];
 
@@ -237,53 +234,47 @@ static void ec_on_init(void* ptr)
         group = config_groups[++index];
     }
 
-    printf("found %d group(s).\n", groupcount);
+    log_info("Found %d group(s).", groupcount);
 
-    printf("Creating Links ... \n");
+    log_info("Creating Links ... ");
 
-    ec_slaves_map_soem(config_slaves, config_groups);
-    rikerio_create_links(master, config_slaves, offset);
+    ec_slaves_map_soem(config_slaves, config_groups, offset);
+    rikerio_create_links(master, config_slaves);
 
     /* Mapping Slaves */
 
-    printf("Mapping slaves ... ");
+    log_info("Mapping slaves.");
 
     int offs = 0;
 
     for (int i = 1; i <= groupcount; i += 1) {
         uint8_t* ptr = master->io->pointer + offs;
         group_offset[i] = ptr;
-        offs += ec_config_map_group(ptr + 1, i) + 1;
+        offs += ec_config_map_group(ptr, i) + 1;
     }
-
-    printf("done.\n");
 
     /* Configure Distributed Clocks */
 
-    printf("Configurating distributed clocks ... ");
+    log_info("Configurating distributed clocks.");
 
     if (ec_configdc() == -1) {
-        printf("Configuration failed.\n");
+        log_error("Configuration failed.");
         master_done(master, RIO_ERROR);
         return;
     }
 
-    printf("done\n");
-
     /* Waiting for slaves */
 
-    printf("Waiting for all slaves to reach SAFE_OP state ... ");
+    log_info("Waiting for all slaves to reach SAFE_OP state.");
 
     // wait for all slaves to reach SAFE_OP state
     int ret_safe_op = ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
 
     if (ret_safe_op == -1) {
-        printf("error statecheck ... ");
+        log_error("error statecheck ... ");
     }
 
-    printf("done.\n");
-
-    printf("Waiting for all slaves to reach OP state ...");
+    log_info("Waiting for all slaves to reach OP state.");
     ec_slave[0].state = EC_STATE_OPERATIONAL;
     ec_writestate(0);
 
@@ -292,8 +283,6 @@ static void ec_on_init(void* ptr)
         rikerio_update();
         ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
     } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
-
-    printf("done!\n");
 
     master_done(master, RIO_OK);
 }
@@ -323,7 +312,7 @@ static void ec_on_post(void* ptr)
 static void ec_on_quit(void* ptr)
 {
 
-    printf("Terminating ethercat master.\n");
+    log_info("Terminating ethercat master.");
 
     master_t* master = (master_t*)ptr;
 
@@ -347,7 +336,7 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
         offset = atoi(offset_str);
     }
 
-    printf("Starting with offset = %d.\n", offset);
+    log_info("Starting with offset = %d.", offset);
 
     if (!ifname) {
         ifname = "eth0";

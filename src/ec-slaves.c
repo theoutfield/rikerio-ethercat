@@ -464,10 +464,10 @@ ec_group_t** ec_slaves_create_groups(ec_slave_t** slaves)
     return groups;
 }
 
-void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups)
+void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offset)
 {
 
-    uint32_t bit_offset = 0;
+    uint32_t bit_offset = offset * 8;
 
     for (int i = 0; groups[i] != NULL; i += 1) {
 

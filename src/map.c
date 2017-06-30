@@ -9,6 +9,7 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
     char* config_filename = sap_option_get(options, "config");
     int soem = sap_option_enabled(options, "soem");
     int igh = sap_option_enabled(options, "igh");
+    uint32_t offset = 0;
 
     if (!soem && igh) {
         printf("EtherCAT Master from the IgH not supported yet.\n");
@@ -19,6 +20,14 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
         soem = 1;
     }
 
+    char* offset_str = sap_option_get(options, "offset");
+
+    if (!offset_str) {
+        offset = 0;
+    } else {
+        offset = atoi(offset_str);
+    }
+
     if (config_filename == NULL) {
 
         if (!quiet) {
@@ -26,8 +35,6 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
         }
         return -1;
     }
-
-    //    ec_slave_t** slaves = ec_slaves_create_from_json(config_filename);
 
     ec_slave_t* slaves[EC_MAX_SLAVES];
 
@@ -56,7 +63,7 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
     /* loop through all slaves ordered by their groups and
      * set the adresse fields */
 
-    ec_slaves_map_soem(slaves, groups);
+    ec_slaves_map_soem(slaves, groups, offset);
 
     ecyaml_print(slaves);
 
