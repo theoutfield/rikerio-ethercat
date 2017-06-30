@@ -497,7 +497,7 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups)
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
-                    printf("output: slave %d starts at %d.%d counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+                    //                    printf("output: slave %d starts at %d.%d counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
 
                     bit_offset += cur_pdo->bitlen;
                 }
@@ -522,7 +522,7 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups)
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
-                    printf("input: slave %d starts at %d.%d, counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+                    //                    printf("input: slave %d starts at %d.%d, counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
 
                     bit_offset += cur_pdo->bitlen;
                 }

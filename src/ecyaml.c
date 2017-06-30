@@ -141,7 +141,7 @@ static void ecyaml_channel_to_yaml(
             char bit_offset[20];
 
             sprintf(byte_offset, "%d", current_pdo->byte_offset);
-            sprintf(byte_offset, "%d", current_pdo->bit_offset);
+            sprintf(bit_offset, "%d", current_pdo->bit_offset);
 
             ecyaml_scalar(emitter, "address");
             ecyaml_start_mapping(emitter);
@@ -227,23 +227,31 @@ void ecyaml_slave_created_event(ecyaml_read_state_t* read_state,
 
     slaves[read_state->current_slave] = current_slave;
     read_state->current_slave += 1;
+    read_state->current_input_channel = 0;
+    read_state->current_output_channel = 0;
+    read_state->current_pdo = 0;
+    read_state->current_link = 0;
 }
 
 void ecyaml_input_channel_create_event(ecyaml_read_state_t* read_state,
     ec_slave_t* current_slave, ec_channel_t* current_channel)
 {
 
-    current_slave->input_channel[read_state->current_channel] = current_channel;
-    read_state->current_channel += 1;
+    current_slave->input_channel[read_state->current_input_channel] = current_channel;
+    read_state->current_input_channel += 1;
+    read_state->current_pdo = 0;
+    read_state->current_link = 0;
 }
 
 void ecyaml_output_channel_create_event(ecyaml_read_state_t* read_state,
     ec_slave_t* current_slave, ec_channel_t* current_channel)
 {
 
-    current_slave->output_channel[read_state->current_channel]
+    current_slave->output_channel[read_state->current_output_channel]
         = current_channel;
-    read_state->current_channel += 1;
+    read_state->current_output_channel += 1;
+    read_state->current_pdo = 0;
+    read_state->current_link = 0;
 }
 
 void ecyaml_pdo_create_event(ecyaml_read_state_t* read_state,
@@ -252,6 +260,19 @@ void ecyaml_pdo_create_event(ecyaml_read_state_t* read_state,
 
     current_channel->pdo[read_state->current_pdo] = current_pdo;
     read_state->current_pdo += 1;
+    read_state->current_link = 0;
+}
+
+void ecyaml_link_create_event(ecyaml_read_state_t* read_state,
+    ec_pdo_t* current_pdo, char* link_str)
+{
+    current_pdo->links[current_pdo->link_count]
+        = calloc(1, strlen(link_str));
+
+    strcpy(current_pdo->links[current_pdo->link_count],
+        link_str);
+
+    current_pdo->link_count += 1;
 }
 
 int ecyaml_read(ec_slave_t** slaves, char* filename)
@@ -259,6 +280,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
     yaml_parser_t parser;
     yaml_event_t event;
+    yaml_event_t last_event;
 
     ecyaml_read_state_t read_state = { 0, 0, 0 };
 
@@ -271,10 +293,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
     int done = 0;
     int state = START;
     int next_state = START;
-    int cntr = 0;
-    int in_ch_counter = 0;
-    int in_pdos_counter = 0;
-    int in_pdo_counter = 0;
+    int last_state;
 
     ec_slave_t* current_slave;
     ec_channel_t* current_channel;
@@ -284,7 +303,12 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
     while (!done) {
 
+        last_state = state;
         state = next_state;
+
+        yaml_event_delete(&last_event);
+
+        memcpy(&last_event, &event, sizeof(yaml_event_t));
 
         if (!yaml_parser_parse(&parser, &event)) {
             break;
@@ -293,373 +317,180 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
         if (state == START) {
             if (event.type == YAML_STREAM_START_EVENT) {
                 next_state = STREAM;
-                //printf("stream start\n");
             }
         }
 
         if (state == STREAM) {
             if (event.type == YAML_DOCUMENT_START_EVENT) {
                 next_state = DOCUMENT;
-                //printf(" document start\n");
             }
         }
 
         if (state == DOCUMENT) {
-            if (event.type == YAML_SEQUENCE_START_EVENT) {
-                next_state = SLAVES;
-                //printf("  slaves start\n");
+            if (event.type == YAML_SCALAR_EVENT) {
+
+                if (strcmp(event.data.scalar.value, "slaves") == 0) {
+                    next_state = SLAVES;
+                }
             }
         }
 
         if (state == SLAVES) {
 
             if (event.type == YAML_MAPPING_START_EVENT) {
-                next_state = SLAVE;
-                read_state.current_channel = 0;
-                read_state.current_pdo = 0;
                 current_slave = calloc(1, sizeof(ec_slave_t));
-                //printf("   single slave start\n");
+                next_state = SLAVE;
             }
         }
 
         if (state == SLAVE) {
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "name") == 0) {
-                next_state = SLAVE_NAME;
+            if (last_event.type == YAML_SCALAR_EVENT && event.type == YAML_SCALAR_EVENT) {
+
+                if (strcmp(last_event.data.scalar.value, "name") == 0) {
+                    current_slave->name
+                        = calloc(1, strlen(event.data.scalar.value) + 1);
+                    strcpy(current_slave->name, event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "man") == 0) {
+                    current_slave->man = atoi(event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "id") == 0) {
+                    current_slave->id = atoi(event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "rev") == 0) {
+                    current_slave->rev = atoi(event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "group") == 0) {
+                    current_slave->group_name
+                        = calloc(1, strlen(last_event.data.scalar.value));
+                    strcpy(current_slave->group_name, event.data.scalar.value);
+                }
             }
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "man") == 0) {
-                next_state = SLAVE_MAN;
+            if (last_event.type == YAML_SCALAR_EVENT && event.type == YAML_SEQUENCE_START_EVENT) {
+
+                if (strcmp(last_event.data.scalar.value, "input") == 0) {
+                    input_channel = 1; // input channel used
+                    next_state = CHANNELS;
+                }
+                if (strcmp(last_event.data.scalar.value, "output") == 0) {
+                    input_channel = 0; // output channel used
+                    next_state = CHANNELS;
+                }
             }
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "id") == 0) {
-                next_state = SLAVE_ID;
-            }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "rev") == 0) {
-                next_state = SLAVE_REV;
-            }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "group") == 0) {
-                next_state = SLAVE_GROUP;
-            }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "input") == 0) {
-                current_channel = calloc(1, sizeof(ec_channel_t));
-
-                read_state.current_channel = 0;
-                read_state.current_pdo = 0;
-                input_channel = 1; // input channel used
-                next_state = INPUT;
-            }
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "output") == 0) {
-                current_channel = calloc(1, sizeof(ec_channel_t));
-
-                read_state.current_channel = 0;
-                read_state.current_pdo = 0;
-                input_channel = 0; // output channel used
-                next_state = OUTPUT;
-            }
             if (event.type == YAML_MAPPING_END_EVENT) {
-                next_state = SLAVES;
-
                 /* add the slave to the slavelist */
                 ecyaml_slave_created_event(&read_state, slaves, current_slave);
-
-                //printf("   single slave end\n");
+                next_state = SLAVES;
             }
         }
 
-        if (state == SLAVE_NAME) {
+        if (state == CHANNELS) {
 
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("     name: %s\n", event.data.scalar.value);
-                current_slave->name
-                    = calloc(1, strlen(event.data.scalar.value) + 1);
-                strcpy(current_slave->name, event.data.scalar.value);
-                next_state = SLAVE;
-            }
-        }
-
-        if (state == SLAVE_MAN) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("     man: %s\n", event.data.scalar.value);
-                current_slave->man = atoi(event.data.scalar.value);
-                next_state = SLAVE;
-            }
-        }
-
-        if (state == SLAVE_ID) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("     id: %s\n", event.data.scalar.value);
-                current_slave->id = atoi(event.data.scalar.value);
-                next_state = SLAVE;
-            }
-        }
-
-        if (state == SLAVE_REV) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("     rev: %s\n", event.data.scalar.value);
-                current_slave->rev = atoi(event.data.scalar.value);
-                next_state = SLAVE;
-            }
-        }
-
-        if (state == SLAVE_GROUP) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("     group: %s\n", event.data.scalar.value);
-                current_slave->group_name
-                    = calloc(1, strlen(event.data.scalar.value));
-                strcpy(current_slave->group_name, event.data.scalar.value);
-                next_state = SLAVE;
-            }
-        }
-
-        if (state == INPUT) {
-
-            if (event.type == YAML_SEQUENCE_START_EVENT && cntr > 0) {
-                cntr += 1;
-            }
-
-            if (event.type == YAML_SEQUENCE_START_EVENT && cntr == 0) {
-                cntr += 1;
-                //printf("    input start\n");
-            }
             if (event.type == YAML_MAPPING_START_EVENT) {
-                next_state = CHANNEL;
-                //printf("     channel start\n");
-                in_ch_counter = 1;
-
                 current_channel = calloc(1, sizeof(ec_channel_t));
+                next_state = CHANNEL;
             }
-
-            if (event.type == YAML_SEQUENCE_END_EVENT && cntr > 0) {
-                cntr -= 1;
-            }
-
-            if (event.type == YAML_SEQUENCE_END_EVENT && cntr == 0) {
+            if (event.type == YAML_SEQUENCE_END_EVENT) {
                 next_state = SLAVE;
-
-                //printf("    input end\n");
             }
         }
 
         if (state == CHANNEL) {
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "name") == 0) {
-                next_state = CHANNEL_NAME;
-            }
+            if (last_event.type == YAML_SCALAR_EVENT) {
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "index") == 0) {
-                next_state = CHANNEL_INDEX;
-            }
+                if (strcmp(last_event.data.scalar.value, "name") == 0) {
+                    current_channel->name
+                        = calloc(1, sizeof(strlen(event.data.scalar.value)));
+                    strcpy(current_channel->name, event.data.scalar.value);
+                }
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "pdos") == 0) {
-                read_state.current_pdo = 0;
-                next_state = CHANNEL_PDOS;
-            }
+                if (strcmp(last_event.data.scalar.value, "index") == 0) {
+                    //printf("      index: %s\n", event.data.scalar.value);
+                    current_channel->index = atoi(event.data.scalar.value);
+                }
 
-            if (event.type == YAML_MAPPING_START_EVENT) {
-                in_ch_counter += 1;
+                if (strcmp(last_event.data.scalar.value, "pdos") == 0) {
+                    next_state = PDOS;
+                }
             }
 
             if (event.type == YAML_MAPPING_END_EVENT) {
 
-                if (in_ch_counter > 0) {
-                    in_ch_counter -= 1;
+                if (input_channel) {
+                    ecyaml_input_channel_create_event(
+                        &read_state, current_slave, current_channel);
+
+                } else {
+                    ecyaml_output_channel_create_event(
+                        &read_state, current_slave, current_channel);
                 }
 
-                if (in_ch_counter == 0) {
-                    if (input_channel) {
-                        next_state = INPUT;
-                        ecyaml_input_channel_create_event(
-                            &read_state, current_slave, current_channel);
-
-                    } else {
-                        next_state = OUTPUT;
-                        ecyaml_output_channel_create_event(
-                            &read_state, current_slave, current_channel);
-                    }
-
-                    //  printf("     channel end\n");
-                }
+                next_state = CHANNELS;
             }
         }
 
-        if (state == CHANNEL_NAME) {
+        if (state == PDOS) {
 
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("      name: %s\n", event.data.scalar.value);
-                current_channel->name
-                    = calloc(1, sizeof(strlen(event.data.scalar.value)));
-                strcpy(current_channel->name, event.data.scalar.value);
-
-                next_state = CHANNEL;
-            }
-        }
-
-        if (state == CHANNEL_INDEX) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("      index: %s\n", event.data.scalar.value);
-                current_channel->index = atoi(event.data.scalar.value);
-                next_state = CHANNEL;
-            }
-        }
-
-        if (state == CHANNEL_PDOS) {
-            if (event.type == YAML_SEQUENCE_START_EVENT) {
-                if (in_pdos_counter == 0) {
-                    current_pdo = calloc(1, sizeof(ec_pdo_t));
-                    //printf("       pdos start\n");
-                }
-                in_pdos_counter += 1;
+            if (event.type == YAML_MAPPING_START_EVENT) {
+                current_pdo = calloc(1, sizeof(ec_pdo_t));
+                next_state = PDO;
             }
 
             if (event.type == YAML_SEQUENCE_END_EVENT) {
-                in_pdos_counter -= 1;
-                if (in_pdos_counter == 0) {
-                    next_state = CHANNEL;
-                    //printf("       pdos end\n");
-                }
-            }
-            if (event.type == YAML_MAPPING_START_EVENT) {
-                next_state = CHANNEL_PDO;
-                //printf("        pdo start\n");
+                next_state = CHANNEL;
             }
         }
 
-        if (state == CHANNEL_PDO) {
+        if (state == PDO) {
 
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "sub_index") == 0) {
-                next_state = CHANNEL_PDO_SUBINDEX;
+            if (last_event.type == YAML_SCALAR_EVENT && event.type == YAML_SCALAR_EVENT) {
+                if (strcmp(last_event.data.scalar.value, "sub_index") == 0) {
+                    current_pdo->sub_index = atoi(event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "datatype") == 0) {
+                    current_pdo->datatype_str
+                        = calloc(1, strlen(event.data.scalar.value));
+                    strcpy(current_pdo->datatype_str, event.data.scalar.value);
+                }
+
+                if (strcmp(last_event.data.scalar.value, "bitlen") == 0) {
+                    current_pdo->bitlen = atoi(event.data.scalar.value);
+                }
             }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "datatype") == 0) {
-                next_state = CHANNEL_PDO_DATATYPE;
-            }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "bitlen") == 0) {
-                next_state = CHANNEL_PDO_BITLEN;
-            }
-
-            if (event.type == YAML_SCALAR_EVENT
-                && strcmp(event.data.scalar.value, "links") == 0) {
-                next_state = CHANNEL_PDO_LINKS;
+            if (last_event.type == YAML_SCALAR_EVENT && strcmp(last_event.data.scalar.value, "links") == 0 && event.type == YAML_SEQUENCE_START_EVENT) {
+                next_state = LINKS;
             }
 
             if (event.type == YAML_MAPPING_END_EVENT) {
-                next_state = CHANNEL_PDOS;
                 ecyaml_pdo_create_event(
                     &read_state, current_channel, current_pdo);
-                //printf("        pdo end\n");
+                next_state = PDOS;
             }
         }
 
-        if (state == CHANNEL_PDO_SUBINDEX) {
-
+        if (state == LINKS) {
             if (event.type == YAML_SCALAR_EVENT) {
-                //printf("         sub_index: %s\n", event.data.scalar.value);
-                current_pdo->sub_index = atoi(event.data.scalar.value);
-                next_state = CHANNEL_PDO;
-            }
-        }
-
-        if (state == CHANNEL_PDO_DATATYPE) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("         datatype: %s\n", event.data.scalar.value);
-                current_pdo->datatype_str
-                    = calloc(1, strlen(event.data.scalar.value));
-                strcpy(current_pdo->datatype_str, event.data.scalar.value);
-                next_state = CHANNEL_PDO;
-            }
-        }
-
-        if (state == CHANNEL_PDO_BITLEN) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                //printf("         bitlen: %s\n", event.data.scalar.value);
-                current_pdo->bitlen = atoi(event.data.scalar.value);
-                next_state = CHANNEL_PDO;
-            }
-        }
-
-        if (state == CHANNEL_PDO_LINKS) {
-
-            if (event.type == YAML_SCALAR_EVENT) {
-                current_pdo->links[current_pdo->link_count]
-                    = calloc(1, strlen(event.data.scalar.value));
-
-                strcpy(current_pdo->links[current_pdo->link_count],
-                    event.data.scalar.value);
-
-                current_pdo->link_count += 1;
-
-                //printf("          link: %s\n", event.data.scalar.value);
-            }
-
-            if (event.type == YAML_SEQUENCE_START_EVENT) {
-                current_pdo->link_count = 0;
-
-                //printf("         links start\n");
+                ecyaml_link_create_event(&read_state, current_pdo, event.data.scalar.value);
             }
 
             if (event.type == YAML_SEQUENCE_END_EVENT) {
                 //printf("         links end\n");
-                next_state = CHANNEL_PDO;
+                next_state = PDO;
             }
         }
-
-        if (state == OUTPUT) {
-
-            if (event.type == YAML_SEQUENCE_START_EVENT && cntr > 0) {
-                cntr += 1;
-            }
-
-            if (event.type == YAML_SEQUENCE_START_EVENT && cntr == 0) {
-                cntr += 1;
-                //printf("    output start\n");
-            }
-            if (event.type == YAML_MAPPING_START_EVENT) {
-                next_state = CHANNEL;
-                //printf("     channel start\n");
-                in_ch_counter = 1;
-
-                current_channel = calloc(1, sizeof(ec_channel_t));
-            }
-
-            if (event.type == YAML_SEQUENCE_END_EVENT && cntr > 0) {
-                cntr -= 1;
-            }
-
-            if (event.type == YAML_SEQUENCE_END_EVENT && cntr == 0) {
-                next_state = SLAVE;
-
-                //printf("    output end\n");
-            }
-        }
-
         done = (event.type == YAML_STREAM_END_EVENT);
-        yaml_event_delete(&event);
     }
+
+    yaml_event_delete(&event);
 
     yaml_parser_delete(&parser);
 }

@@ -10,29 +10,20 @@ typedef enum ecyaml_read_states_s {
     DOCUMENT,
     SLAVES,
     SLAVE,
-    SLAVE_NAME,
-    SLAVE_MAN,
-    SLAVE_ID,
-    SLAVE_REV,
-    SLAVE_GROUP,
-    INPUT,
-    OUTPUT,
+    CHANNELS,
     CHANNEL,
-    CHANNEL_NAME,
-    CHANNEL_INDEX,
-    CHANNEL_PDOS,
-    CHANNEL_PDO,
-    CHANNEL_PDO_SUBINDEX,
-    CHANNEL_PDO_DATATYPE,
-    CHANNEL_PDO_BITLEN,
-    CHANNEL_PDO_LINKS,
+    PDOS,
+    PDO,
+    LINKS
 } ecyaml_read_states_t;
 
 typedef struct ecyaml_read_state_st {
 
     int current_slave;
-    int current_channel;
+    int current_input_channel;
+    int current_output_channel;
     int current_pdo;
+    int current_link;
 
 } ecyaml_read_state_t;
 

@@ -29,7 +29,9 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
 
     //    ec_slave_t** slaves = ec_slaves_create_from_json(config_filename);
 
-    ec_slave_t** slaves;
+    ec_slave_t* slaves[EC_MAX_SLAVES];
+
+    ecyaml_read(slaves, config_filename);
 
     if (!slaves) {
 
