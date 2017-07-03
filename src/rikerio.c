@@ -168,12 +168,10 @@ static void rikerio_update()
     }
 }
 
-static void ec_on_init(void* ptr)
+static void ec_on_init(master_t* master)
 {
 
     log_info("Initiating master.");
-
-    master_t* master = (master_t*)ptr;
 
     /* load configuration */
 
@@ -287,10 +285,8 @@ static void ec_on_init(void* ptr)
     master_done(master, RIO_OK);
 }
 
-static void ec_on_pre(void* ptr)
+static void ec_on_pre(master_t* master)
 {
-
-    master_t* master = (master_t*)ptr;
 
     /* get first byte, represents if this is the
      * first start of the master. If so, set the slaves
@@ -299,22 +295,18 @@ static void ec_on_pre(void* ptr)
     master_done(master, RIO_OK);
 }
 
-static void ec_on_post(void* ptr)
+static void ec_on_post(master_t* master)
 {
-
-    master_t* master = (master_t*)ptr;
 
     rikerio_update();
 
     master_done(master, RIO_OK);
 }
 
-static void ec_on_quit(void* ptr)
+static void ec_on_quit(master_t* master)
 {
 
     log_info("Terminating ethercat master.");
-
-    master_t* master = (master_t*)ptr;
 
     ec_close();
 
@@ -350,10 +342,10 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
 
     master_connect(m);
 
-    m->init_handler = ec_on_init;
-    m->pre_handler = ec_on_pre;
-    m->post_handler = ec_on_post;
-    m->quit_handler = ec_on_quit;
+    m->handler.init = ec_on_init;
+    m->handler.pre = ec_on_pre;
+    m->handler.post = ec_on_post;
+    m->handler.quit = ec_on_quit;
 
     master_start(m);
 
