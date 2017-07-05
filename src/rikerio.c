@@ -340,12 +340,12 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
 
     master_t* m = master_create(id);
 
-    master_connect(m);
-
     m->handler.init = ec_on_init;
     m->handler.pre = ec_on_pre;
     m->handler.post = ec_on_post;
     m->handler.quit = ec_on_quit;
+
+    master_connect(m);
 
     master_start(m);
 
