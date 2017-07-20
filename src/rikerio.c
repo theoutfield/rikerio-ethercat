@@ -74,7 +74,7 @@ static void rikerio_create_links(
 
             while (current_pdo) {
 
-                for (int iiii = 0; i < current_pdo->link_count; iiii += 1) {
+                for (int iiii = 0; iiii < current_pdo->link_count; iiii += 1) {
 
                     char* link_str = current_pdo->links[iiii];
 
@@ -250,9 +250,9 @@ static void ec_on_init(master_t* master)
     int offs = offset;
 
     for (int i = 1; i <= groupcount; i += 1) {
-        uint8_t* ptr = master->io->ptr + offs;
-        group_offset[i] = ptr;
-        offs += ec_config_map_group(ptr, i) + 1;
+        uint8_t* ptr = master->io->ptr + offs + 1; // +1 for the first group offset
+        group_offset[i] = ptr - 1;
+        offs += ec_config_map_group(ptr, i);
     }
 
     /* Configure Distributed Clocks */
