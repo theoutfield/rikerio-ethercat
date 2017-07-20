@@ -485,8 +485,6 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
             ec_slave_t* current_slave = slaves[current_group->member[j]];
 
-            printf("output : group %d, slave %d, bit_offset = %d\n", i, current_group->member[j], bit_offset);
-
             for (int k = 0; current_slave->output_channel[k] != NULL; k += 1) {
 
                 ec_channel_t* cur_channel = current_slave->output_channel[k];
