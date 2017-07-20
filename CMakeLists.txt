@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.1.0)
-project (RikerIOEtherCAT C CXX)
+project (RikerIO-EtherCAT C CXX)
 
 #configure_file("${PROJECT_SOURCE_DIR}/config.h.in" "${PROJECT_BINARY_DIR}/config.h")
 
@@ -30,8 +30,7 @@ find_library(YAML
 
 find_library(RIKERIO 
     NAMES rikerio
-    PATHS "${CMAKE_LIB_RIO_PATH}"
-    NO_DEFAULT_PATH)
+    PATHS "${CMAKE_LIB_RIO_PATH}")
 
 find_package(Threads REQUIRED)
 

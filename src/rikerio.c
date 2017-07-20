@@ -44,16 +44,16 @@ static void rikerio_create_links(
                         break;
                     }
 
-                    linker_adr_t link = {.byte_offset
-                        = current_pdo->byte_offset,
-                        .bit_offset = current_pdo->bit_offset };
+                    link_t entry = {.adr = {
+                                        .byte_offset = current_pdo->byte_offset,
+                                        .bit_offset = current_pdo->bit_offset } };
 
-                    strcpy(link.key, link_str);
+                    strcpy(entry.key, link_str);
 
                     log_info("Setting link %s (%d.%d).", link_str,
-                        link.byte_offset, link.bit_offset);
+                        entry.adr.byte_offset, entry.adr.bit_offset);
 
-                    int ret = master_set_link(master, link_str, &link);
+                    int ret = linker_set(master->client, link_str, &entry.adr);
                 }
                 current_pdo = current_channel->pdo[++iii];
             }
@@ -79,16 +79,16 @@ static void rikerio_create_links(
                         break;
                     }
 
-                    linker_adr_t link = {.byte_offset
-                        = current_pdo->byte_offset,
-                        .bit_offset = current_pdo->bit_offset };
+                    link_t entry = {.adr = {.byte_offset
+                                        = current_pdo->byte_offset,
+                                        .bit_offset = current_pdo->bit_offset } };
 
-                    strcpy(link.key, link_str);
+                    strcpy(entry.key, link_str);
 
                     log_info("Setting link %s (%d.%d). ", link_str,
-                        link.byte_offset, link.bit_offset);
+                        entry.adr.byte_offset, entry.adr.bit_offset);
 
-                    master_set_link(master, link_str, &link);
+                    linker_set(master->client, link_str, &entry.adr);
                 }
 
                 current_pdo = current_channel->pdo[++iii];
@@ -246,7 +246,7 @@ static void ec_on_init(master_t* master)
     int offs = 0;
 
     for (int i = 1; i <= groupcount; i += 1) {
-        uint8_t* ptr = master->io->pointer + offs;
+        uint8_t* ptr = master->iotr + offs;
         group_offset[i] = ptr;
         offs += ec_config_map_group(ptr, i) + 1;
     }
@@ -328,8 +328,6 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
         offset = atoi(offset_str);
     }
 
-    log_info("Starting with offset = %d.", offset);
-
     if (!ifname) {
         ifname = "eth0";
     }
@@ -337,6 +335,10 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
     if (!id) {
         id = "ethercat";
     }
+
+    log_init(id);
+
+    log_info("Starting with offset = %d.", offset);
 
     master_t* m = master_create(id);
 
