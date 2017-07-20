@@ -6,7 +6,13 @@
 static int stdout_writer(void* ext, unsigned char* buffer, size_t size)
 {
 
-    printf("%s\n", buffer);
+    char* str = calloc(1, size);
+    memcpy(str, buffer, size);
+
+    printf("%s", str);
+
+    free(str);
+
     return 1;
 }
 

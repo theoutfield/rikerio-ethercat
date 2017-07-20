@@ -35,9 +35,9 @@ static void rikerio_create_links(
 
             while (current_pdo) {
 
-                for (int i = 0; i < current_pdo->link_count; i += 1) {
+                for (int iiii = 0; iiii < current_pdo->link_count; iiii += 1) {
 
-                    char* link_str = current_pdo->links[i];
+                    char* link_str = current_pdo->links[iiii];
 
                     if (!link_str) {
 
@@ -54,6 +54,10 @@ static void rikerio_create_links(
                         entry.adr.byte_offset, entry.adr.bit_offset);
 
                     int ret = linker_set(master->client, link_str, &entry.adr);
+
+                    if (ret == -1) {
+                        log_error("Error setting link %s.", link_str);
+                    }
                 }
                 current_pdo = current_channel->pdo[++iii];
             }
@@ -70,9 +74,9 @@ static void rikerio_create_links(
 
             while (current_pdo) {
 
-                for (int i = 0; i < current_pdo->link_count; i += 1) {
+                for (int iiii = 0; i < current_pdo->link_count; iiii += 1) {
 
-                    char* link_str = current_pdo->links[i];
+                    char* link_str = current_pdo->links[iiii];
 
                     if (!link_str) {
 
@@ -243,10 +247,10 @@ static void ec_on_init(master_t* master)
 
     log_info("Mapping slaves.");
 
-    int offs = 0;
+    int offs = offset;
 
     for (int i = 1; i <= groupcount; i += 1) {
-        uint8_t* ptr = master->iotr + offs;
+        uint8_t* ptr = master->io->ptr + offs;
         group_offset[i] = ptr;
         offs += ec_config_map_group(ptr, i) + 1;
     }
