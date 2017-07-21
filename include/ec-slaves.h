@@ -48,6 +48,8 @@ typedef struct ec_channel_st {
 
     char* name;
 
+    uint32_t bitsize;
+
     ec_pdo_t* pdo[EC_MAX_PDOS];
 
 } ec_channel_t;
@@ -62,6 +64,11 @@ typedef struct ec_slave_st {
     uint32 man;
     uint32 id;
     uint32 rev;
+
+    struct {
+        uint32_t output;
+        uint32_t input;
+    } size;
 
     uint16 state;
     uint16 al_status;

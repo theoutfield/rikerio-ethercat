@@ -276,7 +276,8 @@ static int ec_config_get_channels_pdo(
             .pdo_count = ec_siigetbyte(slave, offset + 2),
             .sync_manager = ec_siigetbyte(slave, offset + 3),
             .name_index = ec_siigetbyte(slave, offset + 5),
-            .name = calloc(1, EC_MAXNAME + 1) };
+            .name = calloc(1, EC_MAXNAME + 1),
+            .bitsize = 0 };
 
         channels[channel_cntr++] = channel;
 
@@ -313,6 +314,8 @@ static int ec_config_get_channels_pdo(
             pdo->datatype_str = dtype2string(pdo->datatype);
             pdo->bitlen = ec_siigetbyte(slave, offset + 5);
             pdo->name = calloc(1, EC_MAXNAME + 1);
+
+            channel->bitsize += pdo->bitlen;
 
             offset += 5 + 3;
             size += 4;
@@ -373,7 +376,7 @@ int ec_slaves_create_from_soem(char* ifname, ec_slave_t** slaves, ec_slave_t** e
         slave->name = ec_slave[i].name;
         slave->man = ec_slave[i].eep_man;
         slave->id = ec_slave[i].eep_id;
-        slave->id = ec_slave[i].eep_rev;
+        slave->rev = ec_slave[i].eep_rev;
 
         slaves[i - 1] = slave;
 
@@ -477,13 +480,20 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
         /* make 1 byte room for the working counter status */
 
-        bit_offset += 0;
+        bit_offset += 8;
 
         current_group->output_offset = bit_offset / 8;
 
         for (int j = 0; j < current_group->member_count; j += 1) {
 
             ec_slave_t* current_slave = slaves[current_group->member[j]];
+
+            uint32_t ofs = bit_offset % 8;
+
+            if (ofs != 0 && (8 - ofs) < current_slave->size.output) {
+                bit_offset += 8 - ofs;
+            }
+            printf("output: slave %d(%s), bits = %d\n", current_group->member[j], current_slave->name, current_slave->size.output);
 
             for (int k = 0; current_slave->output_channel[k] != NULL; k += 1) {
 
@@ -497,19 +507,20 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
-                    // printf("output: slave %d starts at %d.%d counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+                    printf("output: slave %d(%s) starts at %d.%d counts %d.\n", current_group->member[j], current_slave->name, cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
 
                     bit_offset += cur_pdo->bitlen;
                 }
-            }
-            if (bit_offset % 8 != 0) {
-                bit_offset += 8 - (bit_offset % 8);
             }
         }
 
         for (int j = 0; j < current_group->member_count; j += 1) {
 
             ec_slave_t* current_slave = slaves[current_group->member[j]];
+
+            if (bit_offset % 8 != 0 && (8 - bit_offset % 8) < current_slave->size.input) {
+                bit_offset += 8 - (bit_offset % 8);
+            }
 
             current_group->input_offset = bit_offset / 8;
 
@@ -521,6 +532,10 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
                     ec_pdo_t* cur_pdo = cur_channel->pdo[l];
 
+                    if ((8 - (bit_offset % 8)) < cur_pdo->bitlen) {
+                        bit_offset += 8 - (bit_offset % 8);
+                    }
+
                     cur_pdo->byte_offset = bit_offset / 8;
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
@@ -529,9 +544,6 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
                     bit_offset += cur_pdo->bitlen;
                 }
-            }
-            if (bit_offset % 8 != 0) {
-                bit_offset += 8 - (bit_offset % 8);
             }
         }
     }
@@ -646,22 +658,22 @@ int ec_slaves_compare(ec_slave_t** network_a, ec_slave_t** network_b)
         b = network_b[i];
 
         if (strcmp(a->name, b->name) != 0) {
-            printf("Slaves at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
+            printf("Slaves (names) at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
             return -1;
         }
 
         if (a->man != b->man) {
-            printf("Slaves at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
+            printf("Slaves (manufacturer )at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
             return -1;
         }
 
         if (a->id != b->id) {
-            printf("Slaves at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
+            printf("Slaves (ID) at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
             return -1;
         }
 
         if (a->rev != b->rev) {
-            printf("Slaves at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
+            printf("Slaves (revision) at index %d with names %s and %s, do not match.\n", i, a->name, b->name);
             return -1;
         }
     }

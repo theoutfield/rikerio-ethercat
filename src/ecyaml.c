@@ -196,6 +196,8 @@ static void ecyaml_slave_to_yaml(yaml_emitter_t* emitter, ec_slave_t* slave)
     for (int i = 0; slave->input_channel[i] != NULL; i += 1) {
 
         ecyaml_channel_to_yaml(emitter, slave->input_channel[i]);
+
+        slave->size.output += slave->input_channel[i]->bitsize;
     }
 
     ecyaml_end_sequence(emitter);
@@ -205,6 +207,7 @@ static void ecyaml_slave_to_yaml(yaml_emitter_t* emitter, ec_slave_t* slave)
     for (int i = 0; slave->output_channel[i] != NULL; i += 1) {
 
         ecyaml_channel_to_yaml(emitter, slave->output_channel[i]);
+        slave->size.output += slave->output_channel[i]->bitsize;
     }
 
     ecyaml_end_sequence(emitter);
@@ -414,7 +417,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
                 if (strcmp(last_event.data.scalar.value, "name") == 0) {
                     current_channel->name
-                        = calloc(1, sizeof(strlen(event.data.scalar.value)));
+                        = calloc(1, sizeof(strlen(event.data.scalar.value) + 1));
                     strcpy(current_channel->name, event.data.scalar.value);
                 }
 
@@ -433,10 +436,13 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
                 if (input_channel) {
                     ecyaml_input_channel_create_event(
                         &read_state, current_slave, current_channel);
+                    current_slave->size.input += current_channel->bitsize;
 
                 } else {
                     ecyaml_output_channel_create_event(
                         &read_state, current_slave, current_channel);
+
+                    current_slave->size.output += current_channel->bitsize;
                 }
 
                 next_state = CHANNELS;
@@ -479,6 +485,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
             if (event.type == YAML_MAPPING_END_EVENT) {
                 ecyaml_pdo_create_event(
                     &read_state, current_channel, current_pdo);
+                current_channel->bitsize += current_pdo->bitlen;
                 next_state = PDOS;
             }
         }
