@@ -493,7 +493,8 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
             if (ofs != 0 && (8 - ofs) < current_slave->size.output) {
                 bit_offset += 8 - ofs;
             }
-            printf("output: slave %d(%s), bits = %d\n", current_group->member[j], current_slave->name, current_slave->size.output);
+
+            //            printf("output: slave %d(%s), bits = %d\n", current_group->member[j], current_slave->name, current_slave->size.output);
 
             for (int k = 0; current_slave->output_channel[k] != NULL; k += 1) {
 
@@ -507,7 +508,7 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
-                    printf("output: slave %d(%s) starts at %d.%d counts %d.\n", current_group->member[j], current_slave->name, cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+                    //                    printf("output: slave %d(%s) starts at %d.%d, counts %d (%s).\n", current_group->member[j], current_slave->name, cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen, cur_pdo->name);
 
                     bit_offset += cur_pdo->bitlen;
                 }
@@ -518,11 +519,13 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
             ec_slave_t* current_slave = slaves[current_group->member[j]];
 
-            if (bit_offset % 8 != 0 && (8 - bit_offset % 8) < current_slave->size.input) {
-                bit_offset += 8 - (bit_offset % 8);
+            uint32_t ofs = bit_offset % 8;
+
+            if (ofs != 0 && (8 - ofs) < current_slave->size.input) {
+                bit_offset += 8 - ofs;
             }
 
-            current_group->input_offset = bit_offset / 8;
+            //            current_group->input_offset = bit_offset / 8;
 
             for (int k = 0; current_slave->input_channel[k] != NULL; k += 1) {
 
@@ -532,15 +535,11 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
 
                     ec_pdo_t* cur_pdo = cur_channel->pdo[l];
 
-                    if ((8 - (bit_offset % 8)) < cur_pdo->bitlen) {
-                        bit_offset += 8 - (bit_offset % 8);
-                    }
-
                     cur_pdo->byte_offset = bit_offset / 8;
                     cur_pdo->bit_offset = bit_offset % 8;
                     cur_pdo->mapped = EC_MAPPED;
 
-                    //                    printf("input: slave %d starts at %d.%d, counts %d.\n", current_group->member[j], cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen);
+                    //                    printf("input: slave %d(%s) starts at %d.%d, counts %d - (%s).\n", current_group->member[j], current_slave->name, cur_pdo->byte_offset, cur_pdo->bit_offset, cur_pdo->bitlen, cur_pdo->name);
 
                     bit_offset += cur_pdo->bitlen;
                 }
