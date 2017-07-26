@@ -25,7 +25,11 @@ int main_handler(int argc, char* argv[], sap_options_t* options)
     sap_add_command(parser, "run", run_handler);
     sap_add_command(parser, "help", help_handler);
 
-    return sap_execute_ex(parser, argc, argv, options);
+    int ret = sap_execute_ex(parser, argc, argv, options);
+
+    sap_destroy(parser);
+
+    return ret;
 }
 
 int main(int argc, char* argv[])

@@ -1,10 +1,10 @@
 #ifndef __SAP_H__
 #define __SAP_H__
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <regex.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define SAP_MAX 10
 #define SAP_MAX_OPTIONS 50
@@ -43,7 +43,6 @@ typedef struct sap_st {
     sap_command_t* default_command;
 
 } sap_t;
-
 
 /* 
  * @brief Create a new Argument Parser Object.
@@ -115,6 +114,8 @@ char* sap_option_get(sap_options_t* options, char* key);
  */
 
 int sap_option_enabled(sap_options_t* options, char* key);
+
+void sap_destroy(sap_t* parser);
 
 #ifdef __cplusplus
 }

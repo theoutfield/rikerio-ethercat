@@ -1,14 +1,15 @@
 #include "sap.h"
 
-sap_t* sap_create() {
+sap_t* sap_create()
+{
 
     sap_t* parser = calloc(1, sizeof(sap_t));
 
     return parser;
-
 };
 
-int sap_add_command(sap_t* parser, char* command, command_handler handler) {
+int sap_add_command(sap_t* parser, char* command, command_handler handler)
+{
 
     if (parser == NULL || command == NULL) {
         return -1;
@@ -20,13 +21,12 @@ int sap_add_command(sap_t* parser, char* command, command_handler handler) {
     int i = 0;
 
     for (i = 0; parser->commands[i] != NULL; i += 1) {
-    
+
         sap_command_t* current_command = parser->commands[i];
 
         if (strcmp(current_command->label, command) == 0) {
             return -1;
         }
-    
     }
 
     if (i >= SAP_MAX_COMMANDS) {
@@ -37,24 +37,23 @@ int sap_add_command(sap_t* parser, char* command, command_handler handler) {
 
     sap_command_t* new_command = calloc(1, sizeof(sap_command_t));
 
-    *new_command = (sap_command_t) {
+    *new_command = (sap_command_t){
         .label = command,
         .handler = handler
     };
 
-    parser->commands[i+0] = new_command;
-    parser->commands[i+1] = NULL;
+    parser->commands[i + 0] = new_command;
+    parser->commands[i + 1] = NULL;
 
     return 0;
-
 }
 
-void sap_set_default(sap_t* parser, command_handler handler) {
+void sap_set_default(sap_t* parser, command_handler handler)
+{
 
     if (parser == NULL || handler == NULL) {
-    
+
         return;
-    
     }
 
     sap_command_t* command = calloc(1, sizeof(sap_t));
@@ -62,12 +61,12 @@ void sap_set_default(sap_t* parser, command_handler handler) {
     command->handler = handler;
 
     parser->default_command = command;
-
 }
 
 #define option_regex "^--\\(\\w\\+\\)\\(=\\([^[:space:]]\\+\\)\\)\\?$"
 
-static int sap_is_option(char* arg) {
+static int sap_is_option(char* arg)
+{
 
     regex_t regex;
     int reti = regcomp(&regex, option_regex, 0);
@@ -88,14 +87,13 @@ static int sap_is_option(char* arg) {
     } else if (reti == REG_NOMATCH) {
         printf("Not an option (%s).\n", arg);
         return 0;
-    } 
+    }
 
-        
     return 0;
-
 }
 
-static sap_option_t* sap_parse_option(char* arg) {
+static sap_option_t* sap_parse_option(char* arg)
+{
 
     int status;
     regmatch_t match[4];
@@ -129,7 +127,7 @@ static sap_option_t* sap_parse_option(char* arg) {
      * and store this string as the options label */
 
     int len = match[1].rm_eo - match[1].rm_so;
-    char* label = calloc(1, len);
+    char* label = calloc(1, len + 1);
     memcpy(label, arg + match[1].rm_so, len);
 
     sap_option_t* option = calloc(1, sizeof(sap_option_t));
@@ -147,20 +145,19 @@ static sap_option_t* sap_parse_option(char* arg) {
     }
 
     len = match[3].rm_eo - match[3].rm_so;
-    char* value = calloc(1, len);
+    char* value = calloc(1, len + 1);
     memcpy(value, arg + match[3].rm_so, len);
 
     option->value = value;
     option->is_flag = 0;
 
     return option;
-
 }
-
 
 #define command_regex "^[^--][[:alnum:]\\.\\/-]\\+$"
 
-static int sap_is_command(char* arg) {
+static int sap_is_command(char* arg)
+{
 
     regex_t regex;
     int reti = regcomp(&regex, command_regex, 0);
@@ -180,24 +177,23 @@ static int sap_is_command(char* arg) {
         return 1;
     } else if (reti == REG_NOMATCH) {
         return 0;
-    } 
-        
-    return 0;
+    }
 
+    return 0;
 }
 
-int sap_execute(sap_t* parser, int argc, char* argv[]) {
+int sap_execute(sap_t* parser, int argc, char* argv[])
+{
 
     return sap_execute_ex(parser, argc, argv, NULL);
-
 }
 
-int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_options) {
+int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_options)
+{
 
     /* get first argument */
 
     sap_option_t* current_option;
-
 
     /* determine command label */
 
@@ -207,16 +203,20 @@ int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_o
     char** new_argv = calloc(new_argc, sizeof(char*));
     int option_counter = 0;
 
-
     sap_command_t* command = parser->default_command;
     sap_options_t* options = calloc(1, sizeof(sap_options_t));
 
     if (argc == 0 || !sap_is_command(command_str)) {
 
         if (command != NULL) {
-            return command->handler(new_argc, new_argv, options);
+            int ret = command->handler(new_argc, new_argv, options);
+            free(new_argv);
+            free(options);
+            return ret;
         }
 
+        free(new_argv);
+        free(options);
         return -1;
     }
 
@@ -235,39 +235,41 @@ int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_o
 
         if (sap_is_option(current_string)) {
 
-            sap_option_t* option = sap_parse_option(current_string);    
+            sap_option_t* option = sap_parse_option(current_string);
 
-            options->list[i-1] = option;
-            options->list[i-0] = NULL;
+            options->list[i - 1] = option;
+            options->list[i - 0] = NULL;
 
             option_counter += 1;
 
             new_argc -= 1;
             new_argc_offset += 1;
-
         }
-           
     }
 
     /* get command from the parsers commands list */
 
-
     for (int i = 0; parser->commands[i] != NULL; i += 1) {
-    
-        if (strcmp(parser->commands[i]->label, command_str) != 0) {
-        
-            continue;
 
+        if (strcmp(parser->commands[i]->label, command_str) != 0) {
+
+            continue;
         }
 
         command = parser->commands[i];
 
         break;
-    
     }
 
-
     if (command == NULL) {
+        free(new_argv);
+        for (int i = 0; options->list[i] != NULL; i += 1) {
+            free(options->list[i]->label);
+            free(options->list[i]->value);
+            free(options->list[i]);
+        }
+        free(options);
+
         return -1;
     }
 
@@ -277,10 +279,9 @@ int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_o
     for (int i = new_argc_offset; i < argc; i += 1) {
 
         new_argv[j++] = argv[i];
-
     }
 
-    /* collect privous options and copy */
+    /* collect privious options and copy */
 
     if (extra_options != NULL) {
 
@@ -303,7 +304,6 @@ int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_o
                 added = 1;
 
                 break;
-
             }
 
             if (added == 0) {
@@ -311,21 +311,27 @@ int sap_execute_ex(sap_t* parser, int argc, char* argv[], sap_options_t* extra_o
                 /* add new option at the end of the list */
 
                 options->list[option_counter + 0] = extra_options->list[i];
-                options->list[option_counter + 1] = NULL; 
+                options->list[option_counter + 1] = NULL;
 
                 option_counter += 1;
-
             }
-
         }
-
     }
 
-    return command->handler(new_argc, new_argv, options);
+    int ret = command->handler(new_argc, new_argv, options);
+    free(new_argv);
+    for (int i = 0; options->list[i] != NULL; i += 1) {
+        free(options->list[i]->label);
+        free(options->list[i]->value);
+        free(options->list[i]);
+    }
+    free(options);
 
+    return ret;
 }
 
-void sap_destroy(sap_t* parser) {
+void sap_destroy(sap_t* parser)
+{
 
     if (parser == NULL) {
         return;
@@ -338,51 +344,47 @@ void sap_destroy(sap_t* parser) {
      * remove every command */
 
     for (int i = 0; parser->commands[i] != NULL; i += 1) {
-    
+
         free(parser->commands[i]);
-    
     }
 
     free(parser);
-
 }
 
-char* sap_option_get(sap_options_t* options, char* key) {
+char* sap_option_get(sap_options_t* options, char* key)
+{
 
     if (options == NULL) {
         return NULL;
     }
 
     for (int i = 0; options->list[i] != NULL; i += 1) {
-  
+
         sap_option_t* cur_opt = options->list[i];
-    
+
         if (strcmp(cur_opt->label, key) == 0) {
             return cur_opt->value;
         }
-
     }
 
     return NULL;
-
 }
 
-int sap_option_enabled(sap_options_t* options, char* key) {
+int sap_option_enabled(sap_options_t* options, char* key)
+{
 
     if (options == NULL) {
         return -1;
     }
 
     for (int i = 0; options->list[i] != NULL; i += 1) {
-    
+
         sap_option_t* cur_opt = options->list[i];
-    
+
         if (strcmp(cur_opt->label, key) == 0) {
             return cur_opt->is_flag;
         }
-
     }
 
     return 0;
-
 }

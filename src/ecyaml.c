@@ -167,7 +167,7 @@ static void ecyaml_channel_to_yaml(
     return;
 }
 
-static void ecyaml_slave_to_yaml(yaml_emitter_t* emitter, ec_slave_t* slave)
+static void ecyaml_slave_to_yaml(yaml_emitter_t* emitter, ec_slave_t* slave, int index)
 {
     if (slave == NULL) {
 
@@ -179,12 +179,15 @@ static void ecyaml_slave_to_yaml(yaml_emitter_t* emitter, ec_slave_t* slave)
     char man[20];
     char id[20];
     char rev[20];
+    char ndx[20];
 
     sprintf(man, "%d", slave->man);
     sprintf(id, "%d", slave->id);
     sprintf(rev, "%d", slave->rev);
+    sprintf(ndx, "%d", index);
 
     ecyaml_set_key_value(emitter, "name", slave->name);
+    ecyaml_set_key_value(emitter, "index", ndx);
     ecyaml_set_key_value(emitter, "man", man);
     ecyaml_set_key_value(emitter, "id", id);
     ecyaml_set_key_value(emitter, "rev", rev);
@@ -224,7 +227,7 @@ static void ecyaml_slaves_to_yaml(yaml_emitter_t* emitter, ec_slave_t** network)
 
         ec_slave_t* slave = network[i];
 
-        ecyaml_slave_to_yaml(emitter, slave);
+        ecyaml_slave_to_yaml(emitter, slave, i + 1);
     }
 
     ecyaml_end_sequence(emitter);
