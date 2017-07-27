@@ -681,3 +681,45 @@ int ec_slaves_compare(ec_slave_t** network_a, ec_slave_t** network_b)
         return -1;
     }
 }
+
+void ec_destroy(ec_slave_t** network)
+{
+
+    for (int i = 0; network[i] != NULL; i += 1) {
+
+        ec_slave_t* current_slave = network[i];
+
+        for (int j = 0; current_slave->input_channel[j] != NULL; j += 1) {
+
+            ec_channel_t* current_channel = current_slave->input_channel[j];
+
+            for (int k = 0; current_channel->pdo[k] != NULL; k += 1) {
+
+                ec_pdo_t* current_pdo = current_channel->pdo[k];
+
+                /*                if (current_pdo->name) {
+                    free(current_pdo->name);
+                }
+                */
+                free(current_pdo->datatype_str);
+
+                for (int l = 0; l < current_pdo->link_count; l += 1) {
+                    free(current_pdo->links[k]);
+                }
+
+                free(current_pdo);
+            }
+
+            /*            if (current_channel->name) {
+                free(current_channel->name);
+            }
+            */
+            free(current_channel);
+        }
+
+        free(current_slave->group_name);
+        free(current_slave);
+    }
+
+    free(network);
+}

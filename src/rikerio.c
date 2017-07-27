@@ -190,7 +190,7 @@ static void ec_on_init(master_t* master)
     if (network_ret == -1) {
         log_error("Failed scanning network.");
         free(error_slaves);
-        free(network_slaves);
+        ec_destroy(network_slaves);
         master_done(master, RIO_ERROR);
         return;
     }
@@ -200,7 +200,7 @@ static void ec_on_init(master_t* master)
     if (ec_slavecount == 0) {
         log_error("No slaves in the network, shuting down.");
         free(error_slaves);
-        free(network_slaves);
+        ec_destroy(network_slaves);
         master_done(master, RIO_ERROR);
         return;
     }
@@ -215,7 +215,7 @@ static void ec_on_init(master_t* master)
         if (c_res == -1) {
             log_error("Configuration and network do NOT match.");
             free(error_slaves);
-            free(network_slaves);
+            ec_destroy(network_slaves);
             master_done(master, RIO_ERROR);
             return;
         }
@@ -268,7 +268,7 @@ static void ec_on_init(master_t* master)
     if (ec_configdc() == -1) {
         log_error("Configuration failed.");
         free(error_slaves);
-        free(network_slaves);
+        ec_destroy(network_slaves);
         master_done(master, RIO_ERROR);
         return;
     }
@@ -295,8 +295,7 @@ static void ec_on_init(master_t* master)
     } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
     free(error_slaves);
-    free(network_slaves);
-
+    ec_destroy(network_slaves);
     master_done(master, RIO_OK);
 }
 

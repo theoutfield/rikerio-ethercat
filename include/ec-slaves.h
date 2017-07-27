@@ -163,4 +163,6 @@ map_t ec_slaves_create_links(ec_slave_t** slaves);
  */
 void ec_slaves_print(ec_slave_t** network);
 
+void ec_destroy(ec_slave_t** network);
+
 #endif

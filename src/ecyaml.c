@@ -279,7 +279,7 @@ void ecyaml_link_create_event(ecyaml_read_state_t* read_state,
     ec_pdo_t* current_pdo, char* link_str)
 {
     current_pdo->links[current_pdo->link_count]
-        = calloc(1, strlen(link_str));
+        = calloc(1, strlen(link_str) + 1);
 
     strcpy(current_pdo->links[current_pdo->link_count],
         link_str);
@@ -312,13 +312,17 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
     ec_pdo_t* current_pdo;
 
     int input_channel = 0;
+    int first = 1;
 
     while (!done) {
 
         last_state = state;
         state = next_state;
 
-        yaml_event_delete(&last_event);
+        if (!first) {
+            yaml_event_delete(&last_event);
+            first = 0;
+        }
 
         memcpy(&last_event, &event, sizeof(yaml_event_t));
 
@@ -361,7 +365,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
                 if (strcmp(last_event.data.scalar.value, "name") == 0) {
                     current_slave->name
-                        = calloc(1, strlen(event.data.scalar.value) + 1);
+                        = calloc(1, event.data.scalar.length + 1);
                     strcpy(current_slave->name, event.data.scalar.value);
                 }
 
@@ -379,7 +383,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
                 if (strcmp(last_event.data.scalar.value, "group") == 0) {
                     current_slave->group_name
-                        = calloc(1, strlen(last_event.data.scalar.value));
+                        = calloc(1, event.data.scalar.length + 1);
                     strcpy(current_slave->group_name, event.data.scalar.value);
                 }
             }
@@ -420,7 +424,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
                 if (strcmp(last_event.data.scalar.value, "name") == 0) {
                     current_channel->name
-                        = calloc(1, sizeof(strlen(event.data.scalar.value) + 1));
+                        = calloc(1, event.data.scalar.length + 1);
                     strcpy(current_channel->name, event.data.scalar.value);
                 }
 
@@ -473,7 +477,7 @@ int ecyaml_read(ec_slave_t** slaves, char* filename)
 
                 if (strcmp(last_event.data.scalar.value, "datatype") == 0) {
                     current_pdo->datatype_str
-                        = calloc(1, strlen(event.data.scalar.value));
+                        = calloc(1, strlen(event.data.scalar.value) + 1);
                     strcpy(current_pdo->datatype_str, event.data.scalar.value);
                 }
 
