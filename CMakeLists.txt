@@ -30,7 +30,8 @@ find_library(YAML
 
 find_library(RIKERIO 
     NAMES rikerio
-    PATHS "${CMAKE_LIB_RIO_PATH}")
+    PATHS "${CMAKE_LIB_RIO_PATH}"
+    NO_DEFAULT_PATH)
 
 find_package(Threads REQUIRED)
 
