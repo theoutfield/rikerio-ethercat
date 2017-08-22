@@ -142,7 +142,7 @@ int ec_slaves_compare(ec_slave_t** network_a, ec_slave_t** network_b);
  * @param groups The Groups from the network.
  * @param offset The memory offset
  */
-void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offset);
+void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offset, uint32_t* size);
 
 /* @brief PDO Iterator for a network.
  * @params slaves The Network to iterate through.

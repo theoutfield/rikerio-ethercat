@@ -9,7 +9,6 @@
 char* config = "";
 char* ifname = "eth0";
 char* id = "ethercat";
-uint32_t offset = 0;
 int first_start = 0;
 int groupcount = 0;
 
@@ -246,7 +245,21 @@ static void ec_on_init(master_t* master)
 
     log_info("Creating Links ... ");
 
-    ec_slaves_map_soem(config_slaves, config_groups, offset);
+    uint32_t size = 0;
+    uint32_t offset = 0;
+    ec_slaves_map_soem(config_slaves, config_groups, offset, &size);
+
+    int alloc_res = alloc_request(master->client, size, &offset);
+
+    if (alloc_res == -1) {
+
+        log_error("Error allocating memory.");
+        exit(-1);
+    }
+
+    log_info("Allocated %d bytes of memory on offset %d.", size, offset);
+
+    ec_slaves_map_soem(config_slaves, config_groups, offset, &size);
     rikerio_create_links(master, config_slaves);
 
     /* Mapping Slaves */
@@ -334,14 +347,6 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
     id = sap_option_get(options, "id");
     config = sap_option_get(options, "config");
 
-    char* offset_str = sap_option_get(options, "offset");
-
-    if (!offset_str) {
-        offset = 0;
-    } else {
-        offset = atoi(offset_str);
-    }
-
     if (!ifname) {
         ifname = "eth0";
     }
@@ -351,8 +356,6 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
     }
 
     log_init(id);
-
-    log_info("Starting with offset = %d.", offset);
 
     master_t* m = master_create(id);
 

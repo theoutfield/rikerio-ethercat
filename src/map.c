@@ -63,7 +63,8 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
     /* loop through all slaves ordered by their groups and
      * set the adresse fields */
 
-    ec_slaves_map_soem(slaves, groups, offset);
+    uint32_t size = 0;
+    ec_slaves_map_soem(slaves, groups, offset, &size);
 
     ecyaml_print(slaves);
 

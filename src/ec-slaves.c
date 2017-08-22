@@ -467,7 +467,7 @@ ec_group_t** ec_slaves_create_groups(ec_slave_t** slaves)
     return groups;
 }
 
-void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offset)
+void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offset, uint32_t* size)
 {
 
     uint32_t bit_offset = offset * 8;
@@ -546,6 +546,8 @@ void ec_slaves_map_soem(ec_slave_t** slaves, ec_group_t** groups, uint32_t offse
             }
         }
     }
+
+    *size = bit_offset / 8 + 1;
 }
 
 void ec_slaves_iterate_pdos(ec_slave_t** slaves, pdo_iterator it, void* data)
