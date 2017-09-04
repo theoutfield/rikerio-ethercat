@@ -308,7 +308,7 @@ static void ec_on_init(master_t* master)
     } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
     free(error_slaves);
-    ec_destroy(network_slaves);
+    //    ec_destroy(network_slaves);
     master_done(master, RIO_OK);
 }
 
@@ -365,6 +365,28 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
     m->handler.quit = ec_on_quit;
 
     master_connect(m);
+
+    /* get server version */
+
+    struct {
+        uint16_t major;
+        uint16_t minor;
+        uint16_t patch;
+    } version;
+
+    int vErr = dclient_read(m->client, DIR_VERSION_IDX, 0, sizeof(version), &version);
+
+    if (vErr != 0) {
+        log_error("Error reading server version (%d).", vErr);
+        master_destroy(m);
+        return -1;
+    }
+
+    if (version.major != 1) {
+        log_error("Invalid Server Version, %d.x.x != 1.0.x", version.major);
+        master_destroy(m);
+        return -1;
+    }
 
     master_start(m);
 

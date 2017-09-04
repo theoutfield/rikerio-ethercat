@@ -719,7 +719,7 @@ void ec_destroy(ec_slave_t** network)
             free(current_channel);
         }
 
-        free(current_slave->group_name);
+        //        free(current_slave->group_name);
         free(current_slave);
     }
 
