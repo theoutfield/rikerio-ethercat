@@ -4,7 +4,7 @@
 #include <ethercat.h>
 
 #define LOG_NAMESPACE "EtherCAT"
-#include <rikerio.h>
+#include <rikerio/rikerio.h>
 
 char* config = "";
 char* ifname = "eth0";
