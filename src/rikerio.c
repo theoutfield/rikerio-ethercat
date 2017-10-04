@@ -382,8 +382,8 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
         return -1;
     }
 
-    if (version.major != 1) {
-        log_error("Invalid Server Version, %d.x.x != 1.0.x", version.major);
+    if (version.major != 2) {
+        log_error("Invalid Server Version, %d.x.x != 2.0.x", version.major);
         master_destroy(m);
         return -1;
     }

@@ -10,6 +10,7 @@ ExternalProject_Add(${YAML_PREFIX}
     GIT_TAG ${YAML_VERSION}
     BINARY_DIR ${YAML_BIN_DIR}
     INSTALL_COMMAND cmake -E echo "Skipping install step."
+    CMAKE_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
     LOG_DOWNLOAD 1
     LOG_BUILD 1
     STEP_TARGETS build)

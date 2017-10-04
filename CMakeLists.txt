@@ -1,15 +1,19 @@
 cmake_minimum_required (VERSION 3.1.0)
 project (RikerIO-EtherCAT C CXX)
 
+# Switch this option on if you want to build
+# the RikerIO Server Library automatically, otherwise
+# specify a RIO_INCLUDE AND RIO_LIB to look for
+# rikerio header files and the library
+OPTION(WITH_RIO "Build RikerIO Server Libray" OFF)
+
 include(ExternalProject)
 include(${PROJECT_SOURCE_DIR}/thirdparty/yaml.cmake)
 include(${PROJECT_SOURCE_DIR}/thirdparty/soem.cmake)
-include(${PROJECT_SOURCE_DIR}/thirdparty/rio.cmake)
 
-#configure_file("${PROJECT_SOURCE_DIR}/config.h.in" "${PROJECT_BINARY_DIR}/config.h")
-
-OPTION(WITH_SOEM "Build Open Automation Server with SOEM Master" OFF)
-OPTION(WITH_IGH  "Build RikerIO EtherCAT with IGH Master"        OFF)
+if (WITH_RIO)
+  include(${PROJECT_SOURCE_DIR}/thirdparty/rio.cmake)
+endif()
 
 set(RikerIO_EtherCAT_VERSION_MAJOR  1)
 set(RikerIO_EtherCAT_VERSION_MINOR  0)
@@ -36,7 +40,7 @@ target_link_libraries(ethercat
     pthread rt
     ${YAML_BIN_DIR}/libyaml.a 
     ${SOEM_INSTALL_DIR}/lib/libsoem.a 
-    ${RIO_INSTALL_DIR}/lib/librikerio.so)
+    ${RIO_LIB})
 target_compile_features(ethercat PRIVATE cxx_range_for)
 target_include_directories(ethercat 
     PUBLIC 
@@ -44,7 +48,7 @@ target_include_directories(ethercat
       ${INC}
       ${YAML_SRC_DIR}/include
       ${SOEM_INSTALL_DIR}/include/soem
-      ${RIO_INSTALL_DIR}/include)
+      ${RIO_INC_DIR})
 
 
 install (TARGETS ethercat DESTINATION /usr/bin)

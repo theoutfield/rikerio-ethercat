@@ -16,7 +16,8 @@ ExternalProject_Add(${RIO_PREFIX}
 ExternalProject_Get_Property(${RIO_PREFIX} SOURCE_DIR)
 
 set(RIO_SRC_DIR  ${SOURCE_DIR})
-set(RIO_INC_DIR  ${SOURCE_DIR}/include)
+set(RIO_INC_DIR  ${RIO_BIN_DIR}/include)
+set(RIO_LIB      ${RIO_BIN_DIR}/librikerio.so)
 
 message(STATUS "Source directory of ${RIO_PREFIX} ${RIO_SRC_DIR}")
 message(STATUS "Source directory of ${RIO_PREFIX} ${RIO_INC_DIR}")
