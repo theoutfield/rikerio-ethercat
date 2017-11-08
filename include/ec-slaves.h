@@ -94,6 +94,10 @@ typedef struct ec_group_st {
     uint32_t output_offset;
     uint32_t input_offset;
 
+    uint32_t size;
+    uint32_t input_size;
+    uint32_t output_size;
+
 } ec_group_t;
 
 typedef struct ec_link_st {

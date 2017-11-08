@@ -4,6 +4,7 @@
 #include <ethercat.h>
 
 #define LOG_NAMESPACE "EtherCAT"
+#include <pthread.h>
 #include <rikerio/rikerio.h>
 
 char* config = "";
@@ -11,14 +12,45 @@ char* ifname = "eth0";
 char* id = "ethercat";
 int first_start = 0;
 int groupcount = 0;
+int running = 0;
 
 static uint8_t* group_offset[100];
 static int group_error[100];
+static uint32_t group_size[100];
 
 static void rikerio_create_links(
-    master_t* master, ec_slave_t** slaves)
+    master_t* master, ec_slave_t** slaves, ec_group_t** groups)
 {
     int i = 0;
+
+    ec_group_t* current_group = groups[i];
+
+    while (current_group) {
+
+        char* link_str = calloc(1, strlen(id) + 1 + strlen(current_group->name) + 1 + strlen("wc_state") + 1);
+
+        sprintf(link_str, "%s.%s.wc_state", id, current_group->name);
+
+        link_t entry = {.adr = {
+                            .byte_offset = current_group->offset,
+                            .bit_offset = 0 } };
+
+        log_info("Setting group link %s (%d.%d).", link_str,
+            entry.adr.byte_offset, entry.adr.bit_offset);
+
+        int ret = linker_set(master->client, link_str, &entry.adr);
+
+        if (ret == -1) {
+            log_error("Error setting group link %s.", link_str);
+        }
+
+        free(link_str);
+
+        i += 1;
+        current_group = groups[i];
+    }
+
+    i = 0;
 
     ec_slave_t* current_slave = slaves[i];
 
@@ -104,6 +136,105 @@ static void rikerio_create_links(
     }
 }
 
+static void* check_bus_state(void* ptr)
+{
+
+    int group_slaves_err_states[100];
+
+    (void)(ptr);
+
+    while (running) {
+        int state_read = 0;
+
+        for (int j = 1; j <= groupcount; j += 1) {
+
+            if (!group_error[j]) {
+                group_slaves_err_states[j] = groupcount;
+                continue;
+            }
+
+            if (!state_read) {
+                log_debug("Reading State.");
+
+                int ecr_ret = ec_readstate();
+
+                state_read = 1;
+            }
+
+            for (int i = 1; i <= ec_slavecount; i += 1) {
+
+                if (ec_slave[i].group != j) {
+                    continue;
+                }
+
+                if (ec_slave[i].state == EC_STATE_OPERATIONAL) {
+                    group_slaves_err_states[j] -= 1;
+
+                    if (group_slaves_err_states[j] == 0) {
+                        group_error[j] = 0;
+                    }
+                    continue;
+                }
+
+                // EC_STATE_NONE
+                if (ec_slave[i].state == 0x00) {
+                    ec_slave[i].state = EC_STATE_INIT;
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                    continue;
+
+                } else if (ec_slave[i].state == EC_STATE_INIT) {
+                    ec_slave[i].state = EC_STATE_PRE_OP;
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                    continue;
+                } else if (ec_slave[i].state == EC_STATE_PRE_OP) {
+                    ec_slave[i].state = EC_STATE_OPERATIONAL;
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                    continue;
+                } else if (ec_slave[i].state
+                    == (EC_STATE_PRE_OP + EC_STATE_ERROR)) {
+                    ec_slave[i].state = EC_STATE_INIT;
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                    continue;
+                } else if (ec_slave[i].state
+                    == (EC_STATE_SAFE_OP + EC_STATE_ERROR)) {
+                    ec_slave[i].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                    continue;
+                } else if (ec_slave[i].state == EC_STATE_SAFE_OP) {
+                    ec_slave[i].state = EC_STATE_OPERATIONAL;
+                    log_debug("Slave %d is requesting state (%02x).", i,
+                        ec_slave[i].state);
+
+                    ec_writestate(i);
+                } else {
+                    log_debug("Slave %d in unknown state (%02x).", i, ec_slave[i].state);
+                }
+            }
+
+            if (!group_error[j]) {
+                log_info("Group %d is back in operational state.", j);
+            }
+        }
+
+        sleep(1);
+    }
+}
+
 static void rikerio_update()
 {
     for (int j = 1; j <= groupcount; j += 1) {
@@ -117,57 +248,23 @@ static void rikerio_update()
             wkc = ec_receive_processdata_group(j, EC_TIMEOUTRET);
             expectedWKC = (ec_group[j].outputsWKC * 2) + ec_group[j].inputsWKC;
 
-            wc_state = 0;
-        }
-        if (wkc != expectedWKC) {
+            if (wkc != expectedWKC) {
+                wc_state = 1;
+                group_error[j] = 1;
 
-            group_error[j] = 1;
+                // reset memory area
 
-            log_info("Working counter for group %d do not match.(%d != %d).", j,
-                wkc, expectedWKC);
-            wc_state = 1;
+                log_info("Group %d Working Count Missmatch (expected %d, actual = %d).", j, expectedWKC, wkc);
+                log_debug("Resetting group %d with size %d", j, group_size[j]);
 
-            for (int i = 1; i <= ec_slavecount; i += 1) {
-                if (ec_slave[i].group != j) {
-                    continue;
-                }
-                if (ec_slave[i].state == EC_STATE_OPERATIONAL) {
-                    group_error[j] = 0;
-                    continue;
-                }
+                memset(group_offset[j] + 1, 0, group_size[j] - 1);
 
-                ec_readstate();
-
-                log_info("Slave %d not in operational state (%02x).", i,
-                    ec_slave[i].state);
-
-                if (ec_slave[i].state == EC_STATE_INIT) {
-                    ec_slave[i].state = EC_STATE_PRE_OP;
-                    ec_writestate(i);
-                    continue;
-                } else if (ec_slave[i].state == EC_STATE_PRE_OP) {
-                    ec_slave[i].state = EC_STATE_OPERATIONAL;
-                    ec_writestate(i);
-                    continue;
-                } else if (ec_slave[i].state
-                    == (EC_STATE_PRE_OP + EC_STATE_ERROR)) {
-                    ec_slave[i].state = EC_STATE_INIT;
-                    ec_writestate(i);
-                    continue;
-                } else if (ec_slave[i].state
-                    == (EC_STATE_SAFE_OP + EC_STATE_ERROR)) {
-                    ec_slave[i].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
-                    ec_writestate(i);
-                    continue;
-                } else if (ec_slave[i].state == EC_STATE_SAFE_OP) {
-                    ec_slave[i].state = EC_STATE_OPERATIONAL;
-                    ec_writestate(i);
-                }
+            } else {
+                wc_state = 0;
+                group_error[j] = 0;
             }
+            *group_offset[j] = wc_state;
         }
-
-        /* copy working counter for this group */
-        memcpy(group_offset[j], &wc_state, sizeof(uint8_t));
     }
 }
 
@@ -237,6 +334,15 @@ static void ec_on_init(master_t* master)
         for (int i = 0; i < group->member_count; i += 1) {
             uint16 slaveIndex = group->member[i] + 1;
             ec_slave[slaveIndex].group = index + 1;
+
+            int isize = ec_slave[slaveIndex].Ibits > 0 ? 1 : 0;
+            int osize = ec_slave[slaveIndex].Obits > 0 ? 1 : 0;
+
+            isize += ec_slave[slaveIndex].Ibytes;
+            osize += ec_slave[slaveIndex].Obytes;
+
+            group_size[index + 1] += isize + osize;
+            log_info("group %d, isize %d, osize %d, size %d", index + 1, isize, osize, group_size[index + 1]);
         }
         group = config_groups[++index];
     }
@@ -257,10 +363,19 @@ static void ec_on_init(master_t* master)
         exit(-1);
     }
 
+    /* define group sizes */
+    group = config_groups[0];
+
+    index = 0;
+    while (group) {
+        group_size[index + 1] = config_groups[index]->size;
+        group = config_groups[++index];
+    }
+
     log_info("Allocated %d bytes of memory on offset %d.", size, offset);
 
     ec_slaves_map_soem(config_slaves, config_groups, offset, &size);
-    rikerio_create_links(master, config_slaves);
+    rikerio_create_links(master, config_slaves, config_groups);
 
     /* Mapping Slaves */
 
@@ -303,11 +418,13 @@ static void ec_on_init(master_t* master)
 
     int chk = 40;
     do {
-        rikerio_update();
+        rikerio_update(master->io);
         ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
     } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
     free(error_slaves);
+
+    running = 1;
     //    ec_destroy(network_slaves);
     master_done(master, RIO_OK);
 }
@@ -324,7 +441,6 @@ static void ec_on_pre(master_t* master)
 
 static void ec_on_post(master_t* master)
 {
-
     rikerio_update();
 
     master_done(master, RIO_OK);
@@ -382,13 +498,29 @@ int rikerio_handler(int argc, char* argv[], sap_options_t* options)
         return -1;
     }
 
+    log_info("Server Version : %d.%d.%d.", version.major, version.minor, version.patch);
+
     if (version.major != 2) {
-        log_error("Invalid Server Version, %d.x.x != 2.0.x", version.major);
+        log_error("Invalid Server Version, %d.x.x != 2.1.x", version.major);
         master_destroy(m);
         return -1;
     }
 
+    if (version.minor < 1) {
+        log_error("Invalid Server Version, 2.%d.x != 2.1.x", version.minor);
+        master_destroy(m);
+        return -1;
+    }
+
+    pthread_t bus_check_thread;
+
+    int pcreat_ret = pthread_create(&bus_check_thread, NULL, check_bus_state, NULL);
+
     master_start(m);
+
+    running = 0;
+
+    pthread_join(bus_check_thread, NULL);
 
     master_destroy(m);
 
