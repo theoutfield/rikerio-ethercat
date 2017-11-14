@@ -3,3 +3,7 @@
 build
 Debug
 Release
+parts
+prime
+stage
+*.snap
