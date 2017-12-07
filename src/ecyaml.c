@@ -133,6 +133,7 @@ static void ecyaml_channel_to_yaml(
         sprintf(sub_index, "%d", current_pdo->sub_index);
         sprintf(bitlen, "%d", current_pdo->bitlen);
 
+        ecyaml_set_key_value(emitter, "name", current_pdo->name);
         ecyaml_set_key_value(emitter, "sub_index", sub_index);
         ecyaml_set_key_value(emitter, "datatype", current_pdo->datatype_str);
         ecyaml_set_key_value(emitter, "bitlen", bitlen);

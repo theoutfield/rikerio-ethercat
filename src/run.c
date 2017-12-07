@@ -1,4 +1,5 @@
 #include "ec-slaves.h"
+#include "ec-tools.h"
 #include "ecyaml.h"
 #include "sap.h"
 #include <errno.h>
@@ -121,7 +122,7 @@ static int run_create_sm(char* name, uint8_t** io_memory, uint32_t size)
     return 0;
 }
 
-int run_handler(int argc, char* argv[], sap_options_t* options)
+int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
 
     char* config = "";
@@ -132,24 +133,36 @@ int run_handler(int argc, char* argv[], sap_options_t* options)
     int groupcount = 0;
     int dur = 100;
 
-    ifname = sap_option_get(options, "ifname");
-    ioname = sap_option_get(options, "out");
-    config = sap_option_get(options, "config");
+    sap_option_t* oifname = sap_get_option_by_key(options, "ifname");
+    sap_option_t* oioname = sap_get_option_by_key(options, "out");
+    sap_option_t* oconfig = sap_get_option_by_key(options, "config");
 
-    char* memsize_str = sap_option_get(options, "size");
-
-    if (!memsize_str) {
-        memsize = 4096;
-    } else {
-        memsize = atoi(memsize_str);
+    if (oifname) {
+        ifname = oifname->value;
     }
 
-    char* dur_str = sap_option_get(options, "dur");
+    if (oioname) {
+        ioname = oioname->value;
+    }
 
-    if (!dur_str) {
-        dur = 50;
+    if (oconfig) {
+        config = oconfig->value;
+    }
+
+    sap_option_t* omemsize = sap_get_option_by_key(options, "size");
+
+    if (omemsize) {
+        memsize = atoi(omemsize->value);
     } else {
-        dur = atoi(dur_str);
+        memsize = 4096;
+    }
+
+    sap_option_t* oDurStr = sap_get_option_by_key(options, "dur");
+
+    if (oDurStr) {
+        dur = atoi(oDurStr->value);
+    } else {
+        dur = 50;
     }
 
     if (!ifname) {
@@ -166,9 +179,15 @@ int run_handler(int argc, char* argv[], sap_options_t* options)
     ec_slave_t** network_slaves;
     ec_slave_t** error_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
 
+    ec_tools_request_init_state(ifname);
+
+    ec_tools_request_preop_state();
+
+    ec_config_apply_all();
+
     printf("Scanning Network ... ");
     network_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
-    int network_ret = ec_slaves_create_from_soem(ifname, network_slaves, error_slaves);
+    int network_ret = ec_slaves_create_from_soem(network_slaves, error_slaves);
 
     if (network_ret == -1) {
         printf("failed.\n");

@@ -1,6 +1,6 @@
 #include "sap.h"
 
-static int help_root_handler(int argc, char* argv[], sap_options_t* options)
+static int help_root_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
     printf("Usage: ethercat [--config=<file>] [--verbose] [--ifname=<ifname>]\n"
            "                   <command> [<args..>].\n\n");
@@ -26,7 +26,7 @@ static int help_root_handler(int argc, char* argv[], sap_options_t* options)
            "  --ifname=<ifname> Interface name, defaults to 'eth0'.\n");
 }
 
-static int help_scan_handler(int argc, char* argv[], sap_options_t* options)
+static int help_scan_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
 
     printf("Usage:\n"
@@ -43,7 +43,7 @@ static int help_scan_handler(int argc, char* argv[], sap_options_t* options)
     return 0;
 }
 
-static int help_map_handler(int argc, char* argv[], sap_options_t* options)
+static int help_map_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
     printf("Usage:\n"
            "     ethercat map [--ifname=<ifname>] [--config=<file>]\n\n");
@@ -60,7 +60,7 @@ static int help_map_handler(int argc, char* argv[], sap_options_t* options)
     return 0;
 }
 
-static int help_run_handler(int argc, char* argv[], sap_options_t* options)
+static int help_run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
     printf("Usage:\n"
            "     ethercat run [--ifname=<ifname>] [--config=<file>] [--ioname=<file>]\n"
@@ -83,7 +83,7 @@ static int help_run_handler(int argc, char* argv[], sap_options_t* options)
     return 0;
 }
 
-static int help_rikerio_handler(int argc, char* argv[], sap_options_t* options)
+static int help_rikerio_handler(sap_command_list_t* command, sap_option_list_t* options)
 {
     printf("Usage:\n"
            "     ethercat rikerio [--ifname=<ifname>] [--config=<file>]\n\n");
@@ -101,16 +101,19 @@ static int help_rikerio_handler(int argc, char* argv[], sap_options_t* options)
     return 0;
 }
 
-int help_handler(int argc, char* argv[], sap_options_t* options)
+int help_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
 
-    sap_t* parser = sap_create();
-    sap_set_default(parser, help_root_handler);
+    sap_t parser;
 
-    sap_add_command(parser, "scan", help_scan_handler);
-    sap_add_command(parser, "map", help_map_handler);
-    sap_add_command(parser, "run", help_run_handler);
-    sap_add_command(parser, "rikerio", help_rikerio_handler);
+    sap_init(&parser, 0, NULL);
 
-    return sap_execute_ex(parser, argc, argv, options);
+    sap_set_default(&parser, help_root_handler);
+
+    sap_add_command(&parser, "scan", help_scan_handler);
+    sap_add_command(&parser, "map", help_map_handler);
+    sap_add_command(&parser, "run", help_run_handler);
+    sap_add_command(&parser, "rikerio", help_rikerio_handler);
+
+    return sap_execute_ex(&parser, commands, options);
 }

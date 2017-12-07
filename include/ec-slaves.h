@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ec_config.h"
 #include <ethercat.h>
 #include <hashmap.h>
 
@@ -124,7 +125,7 @@ typedef int (*pdo_iterator)(ec_pdo_t*, int, void*);
  * NULL.
  * @return number of slaves in the network, -1 on error
  */
-int ec_slaves_create_from_soem(char* ifname, ec_slave_t** slaves, ec_slave_t** error_slaves);
+int ec_slaves_create_from_soem(ec_slave_t** slaves, ec_slave_t** error_slaves);
 
 /* @brief Computes the groups refering to the group names in the slaves.
  * @param slaves List of slaves.

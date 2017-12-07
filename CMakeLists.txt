@@ -10,6 +10,7 @@ OPTION(WITH_RIO "Build RikerIO Server Libray" OFF)
 include(ExternalProject)
 include(${PROJECT_SOURCE_DIR}/thirdparty/yaml.cmake)
 include(${PROJECT_SOURCE_DIR}/thirdparty/soem.cmake)
+include(${PROJECT_SOURCE_DIR}/thirdparty/sap.cmake)
 
 if (WITH_RIO)
   include(${PROJECT_SOURCE_DIR}/thirdparty/rio.cmake)
@@ -17,7 +18,7 @@ endif()
 
 set(RikerIO_EtherCAT_VERSION_MAJOR  1)
 set(RikerIO_EtherCAT_VERSION_MINOR  1)
-set(RikerIO_EtherCAT_VERSION_PATCH  1)
+set(RikerIO_EtherCAT_VERSION_PATCH  2)
 set(ROOT                            ${PROJECT_SOURCE_DIR})
 set(INC                             ${ROOT}/include)
 set(SRC                             ${ROOT}/src)
@@ -26,18 +27,20 @@ find_package(Threads REQUIRED)
 
 add_executable(ethercat
     ${SRC}/main.c
-    ${SRC}/sap.c
     ${SRC}/scan.c
     ${SRC}/map.c
     ${SRC}/help.c
     ${SRC}/rikerio.c
     ${SRC}/ec-slaves.c
+    ${SRC}/ec_config.c
+    ${SRC}/ec-tools.c
     ${SRC}/hashmap.c
     ${SRC}/ecyaml.c
     ${SRC}/run.c)
 
 target_link_libraries(ethercat 
     pthread rt
+    ${SAP_LIB}
     ${YAML_BIN_DIR}/libyaml.a 
     ${SOEM_INSTALL_DIR}/lib/libsoem.a 
     ${RIO_LIB})
@@ -46,10 +49,11 @@ target_include_directories(ethercat
     PUBLIC 
       ${PROJECT_BINARY_DIR}
       ${INC}
+      ${SAP_INC_DIR}
       ${YAML_SRC_DIR}/include
       ${SOEM_INSTALL_DIR}/include/soem
       ${RIO_INC_DIR})
-add_dependencies(ethercat yaml017 soem-latest rio_2_1)
+add_dependencies(ethercat yaml017 soem-latest rio_2_1 sap_1_0_latest)
 
 install (TARGETS ethercat DESTINATION /usr/bin)
 

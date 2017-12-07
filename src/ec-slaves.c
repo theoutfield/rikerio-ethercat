@@ -346,23 +346,8 @@ static int ec_config_get_channels_pdo(
     return 0;
 }
 
-int ec_slaves_create_from_soem(char* ifname, ec_slave_t** slaves, ec_slave_t** error_slaves)
+int ec_slaves_create_from_soem(ec_slave_t** slaves, ec_slave_t** error_slaves)
 {
-
-    if (!ifname) {
-        return -1;
-    }
-
-    /* initialise SOEM, bind socket to ifname */
-    if (ec_init(ifname) == -1) {
-        return -1;
-    }
-
-    /* find and auto-config slaves */
-    if (ec_config_init(FALSE) == 0) {
-
-        return -1;
-    }
 
     /* Collect the slave configurations, channels and 
      * pdos and return them to the caller. */

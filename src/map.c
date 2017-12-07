@@ -1,14 +1,47 @@
 #include "ec-slaves.h"
+#include "ec-tools.h"
 #include "ecyaml.h"
 #include "sap.h"
 
-int slaves_map(int argc, char* argv[], sap_options_t* options)
+int slaves_map(sap_command_list_t* commands, sap_option_list_t* options)
 {
 
-    int quiet = sap_option_enabled(options, "quiet");
-    char* config_filename = sap_option_get(options, "config");
-    int soem = sap_option_enabled(options, "soem");
-    int igh = sap_option_enabled(options, "igh");
+    sap_option_t* oQuiet = sap_get_option_by_key(options, "quiet");
+    sap_option_t* oConfig = sap_get_option_by_key(options, "config");
+    sap_option_t* oSoem = sap_get_option_by_key(options, "soem");
+    sap_option_t* oIgh = sap_get_option_by_key(options, "igh");
+    sap_option_t* oOffset = sap_get_option_by_key(options, "offset");
+
+    int quiet = 0;
+
+    if (oQuiet && oQuiet->is_flag) {
+        quiet = 1;
+    }
+
+    char* config_filename;
+
+    if (oConfig) {
+        config_filename = oConfig->value;
+    }
+
+    int soem = 0;
+
+    if (oSoem && oSoem->is_flag) {
+        soem = 1;
+    }
+
+    int igh = 0;
+
+    if (oIgh && oIgh->is_flag) {
+        igh = 1;
+    }
+
+    char* offset_str;
+
+    if (oOffset) {
+        offset_str = oOffset->value;
+    }
+
     uint32_t offset = 0;
 
     if (!soem && igh) {
@@ -19,8 +52,6 @@ int slaves_map(int argc, char* argv[], sap_options_t* options)
     if (!soem && !igh) {
         soem = 1;
     }
-
-    char* offset_str = sap_option_get(options, "offset");
 
     if (!offset_str) {
         offset = 0;

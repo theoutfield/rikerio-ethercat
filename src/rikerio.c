@@ -1,4 +1,6 @@
 #include "ec-slaves.h"
+#include "ec-tools.h"
+#include "ec_config.h"
 #include "ecyaml.h"
 #include "sap.h"
 #include <ethercat.h>
@@ -279,9 +281,34 @@ static void ec_on_init(master_t* master)
     ec_slave_t** network_slaves;
     ec_slave_t** error_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
 
-    log_info("Scanning Network.");
+    log_info("Initiating slaves.");
+
+    int reqInitRet = ec_tools_request_init_state(ifname);
+
+    if (reqInitRet == -1) {
+        log_error("Error request initial state.");
+        free(error_slaves);
+        ec_destroy(network_slaves);
+        master_done(master, RIO_ERROR);
+        return;
+    }
+
+    log_info("Request Pre Operational State.");
+
+    int reqPreOpRet = ec_tools_request_preop_state();
+
+    if (reqPreOpRet == -1) {
+        log_error("Error requesting PreOp state.");
+        free(error_slaves);
+        ec_destroy(network_slaves);
+        master_done(master, RIO_ERROR);
+        return;
+    }
+
+    ec_config_apply_all();
+
     network_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
-    int network_ret = ec_slaves_create_from_soem(ifname, network_slaves, error_slaves);
+    int network_ret = ec_slaves_create_from_soem(network_slaves, error_slaves);
 
     if (network_ret == -1) {
         log_error("Failed scanning network.");
@@ -405,16 +432,25 @@ static void ec_on_init(master_t* master)
 
     log_info("Waiting for all slaves to reach SAFE_OP state.");
 
-    // wait for all slaves to reach SAFE_OP state
-    int ret_safe_op = ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
+    int reqSafeOpRet = ec_tools_request_safeop_state();
 
-    if (ret_safe_op == -1) {
-        log_error("error statecheck ... ");
+    if (reqSafeOpRet == -1) {
+        log_error("Error reaching SafeOp state.");
+        free(error_slaves);
+        ec_destroy(network_slaves);
+        master_done(master, RIO_ERROR);
+        return;
     }
 
-    log_info("Waiting for all slaves to reach OP state.");
-    ec_slave[0].state = EC_STATE_OPERATIONAL;
-    ec_writestate(0);
+    int reqOpRet = ec_tools_request_op_state();
+
+    if (reqOpRet == -1) {
+        log_error("Error reaching Operational state.");
+        free(error_slaves);
+        ec_destroy(network_slaves);
+        master_done(master, RIO_ERROR);
+        return;
+    }
 
     int chk = 40;
     do {
@@ -456,12 +492,24 @@ static void ec_on_quit(master_t* master)
     master_done(master, RIO_OK);
 }
 
-int rikerio_handler(int argc, char* argv[], sap_options_t* options)
+int rikerio_handler(sap_command_list_t* commands, sap_option_list_t* options)
 {
 
-    ifname = sap_option_get(options, "ifname");
-    id = sap_option_get(options, "id");
-    config = sap_option_get(options, "config");
+    sap_option_t* oIfname = sap_get_option_by_key(options, "ifname");
+    sap_option_t* oId = sap_get_option_by_key(options, "id");
+    sap_option_t* oConfig = sap_get_option_by_key(options, "config");
+
+    if (oIfname) {
+        ifname = oIfname->value;
+    }
+
+    if (oId) {
+        id = oId->value;
+    }
+
+    if (oConfig) {
+        config = oConfig->value;
+    }
 
     if (!ifname) {
         ifname = "eth0";
