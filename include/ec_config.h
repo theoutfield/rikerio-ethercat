@@ -2,6 +2,7 @@
 #define __EC_CONFIG_H__
 
 #include <ethercat.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,5 +47,6 @@ int ec_config_add_common(
 
 int ec_config_apply(unsigned int index);
 int ec_config_apply_all();
+int ec_config_init_all();
 
 #endif

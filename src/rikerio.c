@@ -293,6 +293,8 @@ static void ec_on_init(master_t* master)
         return;
     }
 
+    ec_config_init_all();
+
     log_info("Request Pre Operational State.");
 
     int reqPreOpRet = ec_tools_request_preop_state();

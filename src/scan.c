@@ -130,6 +130,8 @@ int slaves_scan(sap_command_list_t* commands, sap_option_list_t* options)
         return -1;
     }
 
+    ec_config_init_all();
+
     int reqPreOpRet = ec_tools_request_preop_state();
 
     if (reqPreOpRet == -1) {

@@ -181,6 +181,8 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     ec_tools_request_init_state(ifname);
 
+    ec_config_init_all();
+
     ec_tools_request_preop_state();
 
     ec_config_apply_all();
