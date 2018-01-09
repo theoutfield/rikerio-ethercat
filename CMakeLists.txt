@@ -17,8 +17,8 @@ if (WITH_RIO)
 endif()
 
 set(RikerIO_EtherCAT_VERSION_MAJOR  1)
-set(RikerIO_EtherCAT_VERSION_MINOR  1)
-set(RikerIO_EtherCAT_VERSION_PATCH  3)
+set(RikerIO_EtherCAT_VERSION_MINOR  2)
+set(RikerIO_EtherCAT_VERSION_PATCH  0)
 set(ROOT                            ${PROJECT_SOURCE_DIR})
 set(INC                             ${ROOT}/include)
 set(SRC                             ${ROOT}/src)
@@ -54,6 +54,12 @@ target_include_directories(ethercat
       ${SOEM_INSTALL_DIR}/include/soem
       ${RIO_INC_DIR})
 add_dependencies(ethercat yaml017 soem-latest rio_2_1 sap_1_0_latest)
+
+add_executable(snake ${SRC}/snake.c)
+target_link_libraries(snake ${RIO_LIB} rt)
+target_include_directories(snake PUBLIC ${RIO_INC_DIR})
+target_compile_features(snake PRIVATE cxx_range_for)
+add_dependencies(snake rio_2_1)
 
 install (TARGETS ethercat DESTINATION /usr/bin)
 
