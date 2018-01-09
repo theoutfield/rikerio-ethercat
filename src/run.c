@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+static char* slaveConfigFiles[100];
 static int freerun_run = 1;
 static int group_error[100];
 static uint8_t* group_offset[100];
@@ -19,39 +20,46 @@ static uint8_t* group_offset[100];
 static void run_signal_handler(int signo)
 {
 
-    if (signo == SIGINT) {
+    if (signo == SIGINT)
+    {
         freerun_run = 0;
     }
 }
 
 static void run_update(int groupcount)
 {
-    for (int j = 1; j <= groupcount; j += 1) {
+    for (int j = 1; j <= groupcount; j += 1)
+    {
 
         int wkc;
         int expectedWKC;
         uint8_t wc_state;
 
-        if (!group_error[j]) {
+        if (!group_error[j])
+        {
             ec_send_processdata_group(j);
             wkc = ec_receive_processdata_group(j, EC_TIMEOUTRET);
             expectedWKC = (ec_group[j].outputsWKC * 2) + ec_group[j].inputsWKC;
 
             wc_state = 0;
         }
-        if (wkc != expectedWKC) {
+        if (wkc != expectedWKC)
+        {
 
             group_error[j] = 1;
 
             printf("Working counter for group %d do not match.(%d != %d)\n", j,
-                wkc, expectedWKC);
+                   wkc, expectedWKC);
             wc_state = 1;
 
-            for (int i = 1; i <= ec_slavecount; i += 1) {
-                if (ec_slave[i].group != j) {
+            for (int i = 1; i <= ec_slavecount; i += 1)
+            {
+                if (ec_slave[i].group != j)
+                {
                     continue;
                 }
-                if (ec_slave[i].state == EC_STATE_OPERATIONAL) {
+                if (ec_slave[i].state == EC_STATE_OPERATIONAL)
+                {
                     group_error[j] = 0;
                     continue;
                 }
@@ -59,27 +67,36 @@ static void run_update(int groupcount)
                 ec_readstate();
 
                 printf("Slave %d not in operational state (%02x).\n", i,
-                    ec_slave[i].state);
+                       ec_slave[i].state);
 
-                if (ec_slave[i].state == EC_STATE_INIT) {
+                if (ec_slave[i].state == EC_STATE_INIT)
+                {
                     ec_slave[i].state = EC_STATE_PRE_OP;
                     ec_writestate(i);
                     continue;
-                } else if (ec_slave[i].state == EC_STATE_PRE_OP) {
+                }
+                else if (ec_slave[i].state == EC_STATE_PRE_OP)
+                {
                     ec_slave[i].state = EC_STATE_OPERATIONAL;
                     ec_writestate(i);
                     continue;
-                } else if (ec_slave[i].state
-                    == (EC_STATE_PRE_OP + EC_STATE_ERROR)) {
+                }
+                else if (ec_slave[i].state
+                         == (EC_STATE_PRE_OP + EC_STATE_ERROR))
+                {
                     ec_slave[i].state = EC_STATE_INIT;
                     ec_writestate(i);
                     continue;
-                } else if (ec_slave[i].state
-                    == (EC_STATE_SAFE_OP + EC_STATE_ERROR)) {
+                }
+                else if (ec_slave[i].state
+                         == (EC_STATE_SAFE_OP + EC_STATE_ERROR))
+                {
                     ec_slave[i].state = (EC_STATE_SAFE_OP + EC_STATE_ACK);
                     ec_writestate(i);
                     continue;
-                } else if (ec_slave[i].state == EC_STATE_SAFE_OP) {
+                }
+                else if (ec_slave[i].state == EC_STATE_SAFE_OP)
+                {
                     ec_slave[i].state = EC_STATE_OPERATIONAL;
                     ec_writestate(i);
                 }
@@ -97,14 +114,16 @@ static int run_create_sm(char* name, uint8_t** io_memory, uint32_t size)
 
     int fd = shm_open(name, O_CREAT | O_RDWR, S_IRWXU);
 
-    if (fd == -1) {
+    if (fd == -1)
+    {
         printf("Error creating shared memory file (%s).\n", strerror(errno));
         return -1;
     }
 
     int ftr_ret = ftruncate(fd, size);
 
-    if (ftr_ret == -1) {
+    if (ftr_ret == -1)
+    {
 
         printf("Error truncating file (%s).\n", strerror(errno));
         return -1;
@@ -112,7 +131,8 @@ static int run_create_sm(char* name, uint8_t** io_memory, uint32_t size)
 
     *io_memory = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-    if (io_memory == MAP_FAILED) {
+    if (io_memory == MAP_FAILED)
+    {
         printf("Error creating shared memory.\n");
         return -1;
     }
@@ -137,41 +157,73 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
     sap_option_t* oioname = sap_get_option_by_key(options, "out");
     sap_option_t* oconfig = sap_get_option_by_key(options, "config");
 
-    if (oifname) {
+    if (oifname)
+    {
         ifname = oifname->value;
     }
 
-    if (oioname) {
+    if (oioname)
+    {
         ioname = oioname->value;
     }
 
-    if (oconfig) {
+    if (oconfig)
+    {
         config = oconfig->value;
     }
 
     sap_option_t* omemsize = sap_get_option_by_key(options, "size");
 
-    if (omemsize) {
+    if (omemsize)
+    {
         memsize = atoi(omemsize->value);
-    } else {
+    }
+    else
+    {
         memsize = 4096;
     }
 
     sap_option_t* oDurStr = sap_get_option_by_key(options, "dur");
 
-    if (oDurStr) {
+    if (oDurStr)
+    {
         dur = atoi(oDurStr->value);
-    } else {
+    }
+    else
+    {
         dur = 50;
     }
 
-    if (!ifname) {
+    if (!ifname)
+    {
         ifname = "eth0";
     }
 
-    if (!ioname) {
+    if (!ioname)
+    {
         ioname = "io.mem";
     }
+
+    unsigned int i = 0;
+    unsigned int count = 0;
+    sap_option_t* curOption = sap_get_option_by_index(options, i);
+
+    while (curOption)
+    {
+
+        if (strcmp(curOption->label, "sconf") == 0)
+        {
+
+            slaveConfigFiles[count++] = curOption->value;
+
+        }
+
+        curOption = sap_get_option_by_index(options, ++i);
+
+    }
+
+    slaveConfigFiles[count] = NULL;
+
 
     /* load configuration */
 
@@ -181,7 +233,10 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     ec_tools_request_init_state(ifname);
 
-    ec_config_init_all();
+    for (unsigned int i = 0; slaveConfigFiles[i] != NULL; i++)
+    {
+        ec_config_read_file(slaveConfigFiles[i]);
+    }
 
     ec_tools_request_preop_state();
 
@@ -191,14 +246,16 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
     network_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
     int network_ret = ec_slaves_create_from_soem(network_slaves, error_slaves);
 
-    if (network_ret == -1) {
+    if (network_ret == -1)
+    {
         printf("failed.\n");
         exit(-1);
     }
 
     printf("done, found %d slaves.\n", ec_slavecount);
 
-    if (config) {
+    if (config)
+    {
         printf("Reading config from %s.\n", config);
         config_slaves = calloc(EC_MAX_SLAVES, sizeof(ec_slave_t));
         ecyaml_read(config_slaves, config);
@@ -207,14 +264,17 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
         int c_res = ec_slaves_compare(network_slaves, config_slaves);
 
-        if (c_res == -1) {
+        if (c_res == -1)
+        {
             printf(" configuration and network do NOT match.\n");
             exit(-1);
         }
 
         printf("configuration and network match!\n");
 
-    } else {
+    }
+    else
+    {
         printf("No configuration, using network 'as it is'.\n");
         config_slaves = network_slaves;
     }
@@ -227,10 +287,12 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     int index = 0;
     groupcount = 0;
-    while (group) {
+    while (group)
+    {
         groupcount += 1;
         // set slave group ids
-        for (int i = 0; i < group->member_count; i += 1) {
+        for (int i = 0; i < group->member_count; i += 1)
+        {
             uint16 slaveIndex = group->member[i] + 1;
             ec_slave[slaveIndex].group = index + 1;
         }
@@ -250,7 +312,8 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     int offs = 0;
 
-    for (int i = 1; i <= groupcount; i += 1) {
+    for (int i = 1; i <= groupcount; i += 1)
+    {
         uint8_t* ptr = io_memory + offs;
         group_offset[i] = ptr;
         offs += ec_config_map_group(ptr + 1, i) + 1;
@@ -262,7 +325,8 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     printf("Configurating distributed clocks ... ");
 
-    if (ec_configdc() == -1) {
+    if (ec_configdc() == -1)
+    {
         printf("Configuration failed.\n");
         exit(-1);
     }
@@ -276,7 +340,8 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
     // wait for all slaves to reach SAFE_OP state
     int ret_safe_op = ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
 
-    if (ret_safe_op == -1) {
+    if (ret_safe_op == -1)
+    {
         printf("error statecheck ... ");
     }
 
@@ -287,10 +352,12 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
     ec_writestate(0);
 
     int chk = 40;
-    do {
+    do
+    {
         run_update(groupcount);
         ec_statecheck(0, EC_STATE_OPERATIONAL, 5000);
-    } while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
+    }
+    while (chk-- && ec_slave[0].state != EC_STATE_OPERATIONAL);
 
     printf("done!\n");
 
@@ -308,7 +375,8 @@ int run_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
     fflush(stdout);
 
-    while (freerun_run) {
+    while (freerun_run)
+    {
         usleep(dur * 1000);
         run_update(groupcount);
     }

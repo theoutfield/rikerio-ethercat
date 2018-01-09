@@ -5,13 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <yaml.h>
+#include <unistd.h>
 
 struct ec_sdo_setting_st;
 struct ec_slave_settings_st;
 typedef struct ec_sdo_setting_st ec_sdo_setting_t;
 typedef struct ec_slave_settings_st ec_slave_settings_t;
 
-struct ec_sdo_setting_st {
+struct ec_sdo_setting_st
+{
 
     uint32_t eep_man;
     uint32_t eep_id;
@@ -27,7 +30,8 @@ struct ec_sdo_setting_st {
     ec_sdo_setting_t* next;
 };
 
-struct ec_slave_settings_st {
+struct ec_slave_settings_st
+{
 
     /* null terminated list of settings */
     ec_sdo_setting_t* first;
@@ -47,6 +51,6 @@ int ec_config_add_common(
 
 int ec_config_apply(unsigned int index);
 int ec_config_apply_all();
-int ec_config_init_all();
+int ec_config_read_file(char* filename);
 
 #endif

@@ -3,11 +3,13 @@
 static void ec_config_append_setting(ec_slave_settings_t* settingsList, ec_sdo_setting_t* setting)
 {
 
-    if (!settingsList || !setting) {
+    if (!settingsList || !setting)
+    {
         return;
     }
 
-    if (settingsList->first == NULL) {
+    if (settingsList->first == NULL)
+    {
         settingsList->first = setting;
         settingsList->last = setting;
         setting->next = NULL;
@@ -30,11 +32,13 @@ int ec_config_add_common(
 
     int counter = 0;
 
-    for (unsigned int i = 1; i <= ec_slavecount; i += 1) {
+    for (unsigned int i = 1; i <= ec_slavecount; i += 1)
+    {
 
         /* check man and id and apply if match */
 
-        if (ec_slave[i].eep_man != eepMan || ec_slave[i].eep_id != eepId) {
+        if (ec_slave[i].eep_man != eepMan || ec_slave[i].eep_id != eepId)
+        {
             continue;
         }
 
@@ -53,6 +57,8 @@ int ec_config_add_common(
         s->next = NULL;
         memcpy(s->dataPtr, ptr, size);
 
+        //printf("Adding new slave config for %d, %d and %#06x:%#04x\n", eepMan, eepId, index, subindex);
+
         ec_config_append_setting(&ec_slave_settings[i], s);
 
         counter += 1;
@@ -64,7 +70,10 @@ int ec_config_add_common(
 int ec_config_apply(unsigned int index)
 {
 
-    if (index > ec_slavecount) {
+    //printf("applying settings for slave %d\n", index);
+
+    if (index > ec_slavecount)
+    {
         return 0;
     }
 
@@ -73,32 +82,52 @@ int ec_config_apply(unsigned int index)
 
     ec_sdo_setting_t* current = ec_slave_settings[index].first;
 
-    while (current) {
+    while (current)
+    {
 
         counter += 1;
 
-        printf("Applying setting for slave %d (%s) at %d:%d ... ", index, ec_slave[index].name, current->index, current->subindex);
+        /*
+        if (current->size == 1)
+        {
+            printf("Applying setting for slave %d (%s) at %#06x:%#04x with value (%#04x) ... ", index, ec_slave[index].name, current->index, current->subindex, *(uint8_t*)current->dataPtr);
+        }
+        else if (current->size == 2)
+        {
+            printf("Applying setting for slave %d (%s) at %#06x:%#04x with value (%#06x) ... ", index, ec_slave[index].name, current->index, current->subindex, *(uint16_t*)current->dataPtr);
+        }
+        else
+        {
+            printf("Applying setting for slave %d (%s) at %#06x:%#04x ... ", index, ec_slave[index].name, current->index, current->subindex);
+
+        }
+
+        */
 
         int ret = ec_SDOwrite(
-            index,
-            current->index,
-            current->subindex,
-            current->ca,
-            current->size,
-            current->dataPtr,
-            EC_TIMEOUTSTATE);
+                      index,
+                      current->index,
+                      current->subindex,
+                      current->ca,
+                      current->size,
+                      current->dataPtr,
+                      EC_TIMEOUTSTATE);
 
-        if (ret == 1) {
-            printf("OK\n");
+        if (ret == 1)
+        {
+            //   printf("OK\n");
             worked += 1;
-        } else {
-            printf("FAILED\n");
+        }
+        else
+        {
+            //   printf("FAILED\n");
         }
 
         current = current->next;
     }
 
-    if (worked != counter) {
+    if (worked != counter)
+    {
         return -1;
     }
 
@@ -108,56 +137,232 @@ int ec_config_apply(unsigned int index)
 int ec_config_apply_all()
 {
 
+    int retAll = 1;
+
     int counter = 0;
 
-    for (int i = 1; i <= ec_slavecount; i += 1) {
-        counter += ec_config_apply(i);
+    for (int i = 1; i <= ec_slavecount; i += 1)
+    {
+        int ret = ec_config_apply(i);
+
+        if (ret == -1)
+        {
+            retAll == -1;
+        }
+        else
+        {
+            counter += ret;
+        }
+
     }
 
-    if (counter == ec_slavecount) {
+    if (retAll == -1)
+    {
+        return -1;
+    }
+
+    if (counter == ec_slavecount)
+    {
         return 1;
     }
 
     return -1;
 }
 
-int ec_config_init_all()
+int ec_config_read_file(char* filename)
 {
-    uint8_t zero = 0x00;
-    uint8_t outputCount = 0x02;
-    uint8_t inputCount = 0x04;
 
-    uint16_t outRegAdrA = 0x1601;
-    uint16_t outRegAdrB = 0x1603;
+    if (access(filename, F_OK) == -1)
+    {
+        printf("Slave Configuration not found (/etc/rikerio/ec-slaves-config.yaml).\n");
+        return -1;
+    }
 
-    uint16_t inRegAdrA = 0x1A01;
-    uint16_t inRegAdrB = 0x1A02;
-    uint16_t inRegAdrC = 0x1A05;
-    uint16_t inRegAdrD = 0x1A06;
 
-    /* Setup for the EL5152 */
-    ec_config_add_common(2, 337653842, 0x1c12, 0x00, sizeof(uint8_t), &zero, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c12, 0x01, sizeof(uint16_t), &outRegAdrA, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c12, 0x02, sizeof(uint16_t), &outRegAdrB, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c12, 0x00, sizeof(uint8_t), &outputCount, FALSE);
+    uint32_t eepMan;
+    uint32_t eepId;
+    uint16_t index;
+    uint8_t subindex;
+    uint32_t size;
+    void* ptr;
+    boolean ca;
 
-    ec_config_add_common(2, 337653842, 0x1c13, 0x00, sizeof(uint8_t), &zero, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c13, 0x01, sizeof(uint16_t), &inRegAdrA, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c13, 0x02, sizeof(uint16_t), &inRegAdrB, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c13, 0x03, sizeof(uint16_t), &inRegAdrC, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c13, 0x04, sizeof(uint16_t), &inRegAdrD, FALSE);
-    ec_config_add_common(2, 337653842, 0x1c13, 0x00, sizeof(uint8_t), &inputCount, FALSE);
+    yaml_parser_t parser;
+    yaml_event_t event;
+    yaml_event_t last_event;
 
-    /* Setup for the EL3062 */
+    yaml_parser_initialize(&parser);
 
-    uint16_t inRegAdrAnA = 0x1A00;
-    uint16_t inRegAdrAnB = 0x1A02;
-    uint8_t inRegAdrAnCount = 0x02;
+    FILE* input = fopen(filename, "rb");
 
-    ec_config_add_common(2, 200683602, 0x1c12, 0x00, sizeof(uint8_t), &zero, FALSE);
-    ec_config_add_common(2, 200683602, 0x1c13, 0x00, sizeof(uint8_t), &zero, FALSE);
+    yaml_parser_set_input_file(&parser, input);
 
-    ec_config_add_common(2, 200683602, 0x1c13, 0x01, sizeof(uint16_t), &inRegAdrAnA, FALSE);
-    ec_config_add_common(2, 200683602, 0x1c13, 0x02, sizeof(uint16_t), &inRegAdrAnB, FALSE);
-    ec_config_add_common(2, 200683602, 0x1c13, 0x00, sizeof(uint8_t), &inRegAdrAnCount, FALSE);
+    enum t_states
+    {
+        START = 0,
+        COMMON = 1,
+        SLAVE = 2,
+        SETTING = 3,
+        END = 4
+    } state = START;
+
+    int done = 0;
+    int first = 1;
+
+    while (!done)
+    {
+
+        if (!first)
+        {
+            yaml_event_delete(&last_event);
+            first = 0;
+        }
+
+        memcpy(&last_event, &event, sizeof(yaml_event_t));
+
+        if (!yaml_parser_parse(&parser, &event))
+        {
+
+            printf("error parsing, YAML_NO_EVENT.\n");
+            return -1;
+            break;
+        }
+
+        if (state == START && event.type == YAML_SCALAR_EVENT)
+        {
+
+            if (strcmp(event.data.scalar.value, "common") == 0)
+            {
+                state = COMMON;
+                continue;
+            }
+
+        }
+
+        if (state == COMMON && event.type == YAML_MAPPING_START_EVENT)
+        {
+
+            state = SLAVE;
+            continue;
+
+        }
+
+        if (state == COMMON && event.type == YAML_MAPPING_END_EVENT)
+        {
+            state = END;
+            done = 1;
+            break;
+        }
+
+
+        if (state == SLAVE && last_event.type == YAML_SCALAR_EVENT && event.type == YAML_SCALAR_EVENT)
+        {
+
+            if (strcmp(last_event.data.scalar.value, "man") == 0)
+            {
+                eepMan = atoi(event.data.scalar.value);
+                //printf("Manufacturer : %d\n", eepMan);
+
+            }
+
+            if (strcmp(last_event.data.scalar.value, "id") == 0)
+            {
+
+                eepId = atoi(event.data.scalar.value);
+                //printf("ID : %d\n", eepId);
+
+            }
+
+            continue;
+        }
+
+        if (state == SLAVE && event.type == YAML_MAPPING_START_EVENT)
+        {
+            state = SETTING;
+            continue;
+        }
+
+        if (state == SLAVE && event.type == YAML_MAPPING_END_EVENT)
+        {
+            state = COMMON;
+            continue;
+        }
+
+
+        if (state == SETTING && last_event.type == YAML_SCALAR_EVENT && event.type == YAML_SCALAR_EVENT)
+        {
+
+            if (strcmp(last_event.data.scalar.value, "index") == 0)
+            {
+                index = (uint16_t) strtol(event.data.scalar.value, NULL, 16);
+                //printf("\tindex : %#06x\n", index);
+            }
+
+            if (strcmp(last_event.data.scalar.value, "subindex") == 0)
+            {
+                subindex = (uint8_t) strtol(event.data.scalar.value, NULL, 16);
+
+                //printf("\tsubindex : %#04x\n", subindex);
+            }
+
+            if (strcmp(last_event.data.scalar.value, "size") == 0)
+            {
+                size = (uint16_t) strtol(event.data.scalar.value, NULL, 10);
+                ptr = calloc(1, size);
+
+                //printf("\tsize : %d\n", size);
+
+            }
+
+            if (strcmp(last_event.data.scalar.value, "value") == 0)
+            {
+                if (size == 0)
+                {
+                    printf("Size unknown for slave (%d, %d). Set the size first.\n", eepMan, eepId);
+                    return -1;
+                }
+
+                /* extract bytes from string */
+
+                char* pos = event.data.scalar.value;
+                uint8_t val[16];
+                for (int count = size - 1; count >= 0; count--)
+                {
+                    sscanf(pos, "%2hhx", &val[count]);
+                    pos += 2;
+                }
+
+                memcpy(ptr, &val[0], size);
+                /*
+                                if (size == 1)
+                                {
+                                    printf("value is 1-byte long %#04x\n", *(uint8_t*) ptr);
+                                }
+                                if (size == 2)
+                                {
+                                    printf("value is 2-byte long %#06x\n", *(uint16_t*) ptr);
+                                }
+                */
+            }
+
+            continue;
+
+        }
+
+        if (state == SETTING && event.type == YAML_MAPPING_END_EVENT)
+        {
+
+            ec_config_add_common(eepMan, eepId, index, subindex, size, ptr, FALSE);
+
+            state = SLAVE;
+            continue;
+        }
+    }
+
+    yaml_event_delete(&event);
+    yaml_parser_delete(&parser);
+
+    return 0;
+
 }
+
