@@ -23,7 +23,8 @@ static int help_root_handler(sap_command_list_t* commands, sap_option_list_t* op
            "the start or map command.\n"
            "  --verbose         Activates additional output.\n"
            "  --id=<id>         Master ID defaults to 'ethercat'\n"
-           "  --ifname=<ifname> Interface name, defaults to 'eth0'.\n");
+           "  --ifname=<ifname> Interface name, defaults to 'eth0'.\n"
+           "  --sconf=<file>    Start-Up Information for Slaves.\n");
 }
 
 static int help_scan_handler(sap_command_list_t* commands, sap_option_list_t* options)
