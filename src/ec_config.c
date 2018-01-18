@@ -174,7 +174,7 @@ int ec_config_read_file(char* filename)
 
     if (access(filename, F_OK) == -1)
     {
-        printf("Slave Configuration not found (/etc/rikerio/ec-slaves-config.yaml).\n");
+        printf("Slave Configuration not found (%s).\n", filename);
         return -1;
     }
 
@@ -365,4 +365,3 @@ int ec_config_read_file(char* filename)
     return 0;
 
 }
-

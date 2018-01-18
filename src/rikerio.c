@@ -634,6 +634,7 @@ int rikerio_handler(sap_command_list_t* commands, sap_option_list_t* options)
 
         if (strcmp(curOption->label, "sconf") == 0)
         {
+            printf("Loading Slave Configuration file %s\n", curOption->value);
 
             slaveConfigFiles[count++] = curOption->value;
 

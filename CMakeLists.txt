@@ -18,7 +18,7 @@ endif()
 
 set(RikerIO_EtherCAT_VERSION_MAJOR  1)
 set(RikerIO_EtherCAT_VERSION_MINOR  2)
-set(RikerIO_EtherCAT_VERSION_PATCH  0)
+set(RikerIO_EtherCAT_VERSION_PATCH  1)
 set(ROOT                            ${PROJECT_SOURCE_DIR})
 set(INC                             ${ROOT}/include)
 set(SRC                             ${ROOT}/src)
