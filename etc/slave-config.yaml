@@ -36,6 +36,42 @@ common:
         value: "02" # hex value
 
     - man: 2 # Manufacturer id (Beckhoff)
+      id: 337653842 # Product ID
+      comment: "Setting up Beckhoffs EL5152."
+      settings:
+      # Setup the Output PDO
+      - index: 0x1c12
+        subindex: 0x00
+        size: 1 # byte size
+        value: "00" # hex value
+      - index: 0x1c12
+        subindex: 0x01
+        size: 2 # byte size
+        value: "1601" # hex value
+      - index: 0x1c12
+        subindex: 0x00
+        size: 1 # byte size
+        value: "01" # hex value
+      # Setup the Input PDO
+      - index: 0x1c13
+        subindex: 0x00
+        size: 1 # byte size
+        value: "00" # hex value
+      - index: 0x1c13
+        subindex: 0x01
+        size: 2 # byte size
+        value: "1A01" # hex value
+      - index: 0x1c13
+        subindex: 0x02
+        size: 2 # byte size
+        value: "1A02" # hex value
+      - index: 0x1c13
+        subindex: 0x00
+        size: 1 # byte size
+        value: "02" # hex value
+
+
+    - man: 2 # Manufacturer id (Beckhoff)
       id: 200683602 # Product ID (EL3062)
       comment: "Setting up Beckhoffs EL3062."
       settings:
