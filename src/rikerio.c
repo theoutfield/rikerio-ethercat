@@ -16,6 +16,8 @@ int first_start = 0;
 int groupcount = 0;
 int running = 0;
 
+static pthread_t bus_check_thread;
+
 static char* slaveConfigFiles[100];
 
 static uint8_t* group_offset[100];
@@ -562,6 +564,13 @@ static void ec_on_init(master_t* master)
     free(error_slaves);
 
     running = 1;
+
+    running = 1;
+
+    int pcreat_ret = pthread_create(&bus_check_thread, NULL, check_bus_state, NULL);
+
+
+
     //    ec_destroy(network_slaves);
     master_done(master, RIO_OK);
 }
@@ -587,6 +596,10 @@ static void ec_on_quit(master_t* master)
 {
 
     log_info("Terminating ethercat master.");
+
+    running = 0;
+
+    pthread_join(bus_check_thread, NULL);
 
     ec_close();
 
@@ -691,15 +704,9 @@ int rikerio_handler(sap_command_list_t* commands, sap_option_list_t* options)
         return -1;
     }
 
-    pthread_t bus_check_thread;
 
-    int pcreat_ret = pthread_create(&bus_check_thread, NULL, check_bus_state, NULL);
 
     master_start(m);
-
-    running = 0;
-
-    pthread_join(bus_check_thread, NULL);
 
     master_destroy(m);
 
