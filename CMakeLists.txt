@@ -14,11 +14,13 @@ include(${PROJECT_SOURCE_DIR}/thirdparty/sap.cmake)
 
 if (WITH_RIO)
   include(${PROJECT_SOURCE_DIR}/thirdparty/rio.cmake)
+ else()
+     set(RIO_LIB rikerio)
 endif()
 
 set(RikerIO_EtherCAT_VERSION_MAJOR  1)
 set(RikerIO_EtherCAT_VERSION_MINOR  2)
-set(RikerIO_EtherCAT_VERSION_PATCH  1)
+set(RikerIO_EtherCAT_VERSION_PATCH  3)
 set(ROOT                            ${PROJECT_SOURCE_DIR})
 set(INC                             ${ROOT}/include)
 set(SRC                             ${ROOT}/src)
@@ -53,13 +55,18 @@ target_include_directories(ethercat
       ${YAML_SRC_DIR}/include
       ${SOEM_INSTALL_DIR}/include/soem
       ${RIO_INC_DIR})
-add_dependencies(ethercat yaml017 soem-latest rio_2_1 sap_1_0_latest)
+add_dependencies(ethercat yaml017 soem-latest sap_1_0_latest)
+if (WITH_RIO)
+    add_dependencies(ethercat rio_2_1)
+endif()
 
 add_executable(snake ${SRC}/snake.c)
 target_link_libraries(snake ${RIO_LIB} rt)
 target_include_directories(snake PUBLIC ${RIO_INC_DIR})
 target_compile_features(snake PRIVATE cxx_range_for)
+if (WITH_RIO)
 add_dependencies(snake rio_2_1)
+endif()
 
 install (TARGETS ethercat DESTINATION /usr/bin)
 
