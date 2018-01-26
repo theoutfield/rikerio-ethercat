@@ -79,7 +79,5 @@ RikerIO-EtherCAT is provided by Cloud Automation "as is" and "with all faults." 
 The EtherCAT Technology is covered, including but not limited to the following patent applications and
 patents: EP1590927, EP1789857, DE102004044764, DE102007017835 with corresponding applications or
 registrations in various other countries.
-The TwinCAT Technology is covered, including but not limited to the following patent applications and
-patents: EP0851348, US6167425 with corresponding applications or registrations in various other countries.
 
 Beckhoff and EtherCAT are registered trademarks of and licensed by Beckhoff Automation GmbH.
